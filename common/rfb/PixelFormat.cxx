@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <math.h>
 #include <rdr/InStream.h>
 #include <rdr/OutStream.h>
 #include <rfb/Exception.h>
@@ -34,6 +35,8 @@
 using namespace rfb;
 
 rdr::U8 PixelFormat::upconvTable[256*8];
+rdr::U8 PixelFormat::gammaTable[256*8];
+rdr::U8 PixelFormat::ditherMatrix[16*16];
 
 class PixelFormat::Init {
 public:
@@ -46,6 +49,24 @@ PixelFormat::Init PixelFormat::_init;
 PixelFormat::Init::Init()
 {
   int bits;
+  rdr::U8 *val;
+
+  int x, y;
+  const rdr::U8 baseMatrix[2][2] = { {0, 2}, {3, 1} };
+
+  // A bayer dither matrix can be constructed be recursively
+  // growing the basic 2x2 matrix above.
+
+  val = &ditherMatrix[0];
+  for (y = 0;y < 16;y++) {
+    for (x = 0;x < 16;x++) {
+      int i;
+      *val = 0;
+      for (i = 0;i < 4;i++)
+        *val = 4 * *val + baseMatrix[(x>>i)&1][(y>>i)&1];
+      val++;
+    }
+  }
 
   // Bit replication is almost perfect, but not quite. And
   // a lookup table is still quicker when there is a large
@@ -65,6 +86,46 @@ PixelFormat::Init::Init()
     // the upper bits when doing a lookup
     for (;i < 256;i += maxVal+1)
       memcpy(&subTable[i], &subTable[0], maxVal+1);
+  }
+
+  // This table is needed so that the dithering makes good use
+  // of all steps in the dithering, and to compensate for gamma.
+
+  for (bits = 1;bits <= 8;bits++) {
+    int i, maxVal, maxFrac;
+    rdr::U8 *subTable;
+
+    maxVal = (1 << bits) - 1;
+    maxFrac = (1 << (8 - bits)) - 1;
+    subTable = &gammaTable[(bits-1)*256];
+
+    for (i = 0;i < 256;i++) {
+      double intensity, intCeil, intFloor;
+      double lum, lumCeil, lumFloor;
+      double frac;
+
+      rdr::U8 val;
+
+      intensity = i / 255.0;
+      intCeil = ceil(intensity * maxVal);
+      intFloor = floor(intensity * maxVal);
+
+      lum = pow(intensity, 2.2);
+      lumCeil = pow(intCeil / maxVal, 2.2);
+      lumFloor = pow(intFloor / maxVal, 2.2);
+
+      if (lumCeil == lumFloor)
+        frac = 0.0;
+      else
+        frac = (lum - lumFloor) / (lumCeil - lumFloor);
+
+      val = ((rdr::U8)intFloor) << (8 - bits);
+      val |= (rdr::U8)(frac * maxFrac);
+
+      // FIXME: Remove noise (push to none, full, half)
+
+      subTable[i] = val;
+    }
   }
 }
 
@@ -444,16 +505,30 @@ void PixelFormat::bufferFromBuffer(rdr::U8* dst, const PixelFormat &srcPF,
     }
   } else {
     // Generic code
+    const rdr::U8 *redTable, *greenTable, *blueTable;
+    redTable = &gammaTable[(redBits - 1) * 256];
+    greenTable = &gammaTable[(greenBits - 1) * 256];
+    blueTable = &gammaTable[(blueBits - 1) * 256];
     int dstPad = (dstStride - w) * bpp/8;
     int srcPad = (srcStride - w) * srcPF.bpp/8;
     while (h--) {
       int w_ = w;
       while (w_--) {
         Pixel p;
-        rdr::U8 r, g, b;
+        rdr::U8 r, g, b, d;
 
         p = srcPF.pixelFromBuffer(src);
         srcPF.rgbFromPixel(p, &r, &g, &b);
+
+        d = ditherMatrix[w_ & 15 | ((h & 15) << 4)];
+
+        r = redTable[r];
+        r += d >> redBits;
+        g = greenTable[g];
+        g += d >> greenBits;
+        b = blueTable[b];
+        b += d >> blueBits;
+
         p = pixelFromRGB(r, g, b);
         bufferFromPixel(dst, p);
 

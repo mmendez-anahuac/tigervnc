@@ -42,10 +42,15 @@ void PixelFormat::directBufferFromBufferFrom888(rdr::UOUT* dst,
   int dstPad, srcPad;
 
   int redTruncShift, greenTruncShift, blueTruncShift;
+  const rdr::U8 *redGammaTable, *greenGammaTable, *blueGammaTable;
 
   redTruncShift = 8 - redBits;
   greenTruncShift = 8 - greenBits;
   blueTruncShift = 8 - blueBits;
+
+  redGammaTable = &gammaTable[(redBits-1)*256];
+  greenGammaTable = &gammaTable[(greenBits-1)*256];
+  blueGammaTable = &gammaTable[(blueBits-1)*256];
 
   if (srcPF.bigEndian) {
     r = src + (24 - srcPF.redShift)/8;
@@ -61,12 +66,24 @@ void PixelFormat::directBufferFromBufferFrom888(rdr::UOUT* dst,
   srcPad = (srcStride - w) * 4;
   while (h--) {
     int w_ = w;
+    const rdr::U8* ditherRow = &ditherMatrix[(h & 15) << 4];
     while (w_--) {
       rdr::UOUT d;
 
-      d = (*r >> redTruncShift) << redShift;
-      d |= (*g >> greenTruncShift) << greenShift;
-      d |= (*b >> blueTruncShift) << blueShift;
+      rdr::U8 dr, dg, db, dither;
+
+      dither = ditherRow[w_ & 15];
+
+      dr = redGammaTable[*r];
+      dr += dither >> redBits;
+      dg = greenGammaTable[*g];
+      dg += dither >> greenBits;
+      db = blueGammaTable[*b];
+      db += dither >> blueBits;
+
+      d = (dr >> redTruncShift) << redShift;
+      d |= (dg >> greenTruncShift) << greenShift;
+      d |= (db >> blueTruncShift) << blueShift;
 
 #if OUTBPP != 8
       if (endianMismatch)

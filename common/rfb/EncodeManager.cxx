@@ -136,7 +136,7 @@ void EncodeManager::writeUpdate(const UpdateInfo& ui, const PixelBuffer* pb,
      */
     changed.copyFrom(ui.changed);
 
-    if (conn->cp.supportsLastRect)
+    if (conn->cp.supportsLastRect && (pb->getPF().depth <= conn->cp.pf().depth))
       writeSolidRects(&changed, pb);
 
     writeRects(changed, pb);

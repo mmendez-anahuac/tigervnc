@@ -138,6 +138,8 @@ namespace rfb {
     bool endianMismatch;
 
     static rdr::U8 upconvTable[256*8];
+    static rdr::U8 gammaTable[256*8];
+    static rdr::U8 ditherMatrix[16*16];
 
     class Init;
     friend class Init;
