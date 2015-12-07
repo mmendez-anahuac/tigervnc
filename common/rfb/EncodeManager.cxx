@@ -156,6 +156,10 @@ EncodeManager::EncodeManager(SConnection* conn_) :
     cpuCount = 1;
   } else {
     vlog.info("Detected %d CPU core(s)", (int)cpuCount);
+    // No point creating more threads than this, they'll just end up
+    // wasting CPU fighting for locks
+    if (cpuCount > 4)
+      cpuCount = 4;
     vlog.info("Creating %d encoder thread(s)", (int)cpuCount);
   }
 
