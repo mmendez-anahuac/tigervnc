@@ -99,8 +99,11 @@ public:
   virtual void serverCutText(const char*, rdr::U32);
 
 public:
-  double decodeTime;
-  double encodeTime;
+  double decodeTime, decodeRealTime;
+  double encodeTime, encodeRealTime;
+
+protected:
+  struct timeval startTime;
 
 protected:
   rdr::FileInStream *in;
@@ -163,8 +166,8 @@ int DummyOutStream::overrun(int itemSize, int nItems)
 
 CConn::CConn(const char *filename)
 {
-  decodeTime = 0.0;
-  encodeTime = 0.0;
+  decodeTime = decodeRealTime = 0.0;
+  encodeTime = encodeRealTime = 0.0;
 
   in = new rdr::FileInStream(filename);
   setStreams(in, NULL);
@@ -216,6 +219,7 @@ void CConn::framebufferUpdateStart()
   CConnection::framebufferUpdateStart();
 
   updates.clear();
+  gettimeofday(&startTime, NULL);
   startCpuCounter();
 }
 
@@ -225,19 +229,33 @@ void CConn::framebufferUpdateEnd()
   rfb::PixelBuffer* pb = getFramebuffer();
   rfb::Region clip(pb->getRect());
 
+  struct timeval stopTime;
+  double realTime;
+
   CConnection::framebufferUpdateEnd();
 
   endCpuCounter();
+  gettimeofday(&stopTime, NULL);
+
+  realTime = (double)stopTime.tv_sec - startTime.tv_sec;
+  realTime += ((double)stopTime.tv_usec - startTime.tv_usec)/1000000.0;
 
   decodeTime += getCpuCounter();
+  decodeRealTime += realTime;
 
   updates.getUpdateInfo(&ui, clip);
 
+  gettimeofday(&startTime, NULL);
   startCpuCounter();
   sc->writeUpdate(ui, pb);
   endCpuCounter();
+  gettimeofday(&stopTime, NULL);
+
+  realTime = (double)stopTime.tv_sec - startTime.tv_sec;
+  realTime += ((double)stopTime.tv_usec - startTime.tv_usec)/1000000.0;
 
   encodeTime += getCpuCounter();
+  encodeRealTime += realTime;
 }
 
 void CConn::dataRect(const rfb::Rect &r, int encoding)
@@ -323,9 +341,8 @@ void SConn::setDesktopSize(int fb_width, int fb_height,
 
 struct stats
 {
-  double decodeTime;
-  double encodeTime;
-  double realTime;
+  double decodeTime, decodeRealTime;
+  double encodeTime, encodeRealTime;
 
   double ratio;
   unsigned long long bytes;
@@ -336,9 +353,6 @@ static struct stats runTest(const char *fn)
 {
   CConn *cc;
   struct stats s;
-  struct timeval start, stop;
-
-  gettimeofday(&start, NULL);
 
   try {
     cc = new CConn(fn);
@@ -356,12 +370,10 @@ static struct stats runTest(const char *fn)
     exit(1);
   }
 
-  gettimeofday(&stop, NULL);
-
   s.decodeTime = cc->decodeTime;
+  s.decodeRealTime = cc->decodeRealTime;
   s.encodeTime = cc->encodeTime;
-  s.realTime = (double)stop.tv_sec - start.tv_sec;
-  s.realTime += ((double)stop.tv_usec - start.tv_usec)/1000000.0;
+  s.encodeRealTime = cc->encodeRealTime;
   cc->getStats(s.ratio, s.bytes, s.rawEquivalent);
 
   delete cc;
@@ -464,6 +476,21 @@ int main(int argc, char **argv)
 
   printf("CPU time (decoding): %g s (+/- %g %%)\n", median, meddev);
 
+  // And for CPU core usage decoding
+  for (i = 0;i < runCount;i++)
+    values[i] = runs[i].decodeTime / runs[i].decodeRealTime;
+
+  sort(values, runCount);
+  median = values[runCount/2];
+
+  for (i = 0;i < runCount;i++)
+    dev[i] = fabs((values[i] - median) / median) * 100;
+
+  sort(dev, runCount);
+  meddev = dev[runCount/2];
+
+  printf("Core usage (decoding): %g (+/- %g %%)\n", median, meddev);
+
   // And for CPU usage encoding
   for (i = 0;i < runCount;i++)
     values[i] = runs[i].encodeTime;
@@ -481,7 +508,7 @@ int main(int argc, char **argv)
 
   // And for CPU core usage encoding
   for (i = 0;i < runCount;i++)
-    values[i] = (runs[i].decodeTime + runs[i].encodeTime) / runs[i].realTime;
+    values[i] = runs[i].encodeTime / runs[i].encodeRealTime;
 
   sort(values, runCount);
   median = values[runCount/2];
@@ -492,7 +519,7 @@ int main(int argc, char **argv)
   sort(dev, runCount);
   meddev = dev[runCount/2];
 
-  printf("Core usage (total): %g (+/- %g %%)\n", median, meddev);
+  printf("Core usage (encoding): %g (+/- %g %%)\n", median, meddev);
 
 #ifdef WIN32
   printf("Encoded bytes: %I64d\n", runs[0].bytes);
