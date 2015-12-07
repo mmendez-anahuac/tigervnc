@@ -18,7 +18,7 @@
  * USA.
  */
 #include <rfb/encodings.h>
-#include <rfb/SConnection.h>
+#include <rfb/ConnParams.h>
 #include <rfb/HextileEncoder.h>
 #include <rfb/PixelBuffer.h>
 #include <rfb/Configuration.h>
@@ -44,8 +44,8 @@ BoolParameter improvedHextile("ImprovedHextile",
 #include <rfb/hextileEncodeBetter.h>
 #undef BPP
 
-HextileEncoder::HextileEncoder(SConnection* conn) :
-  Encoder(conn, encodingHextile, EncoderPlain, -1)
+HextileEncoder::HextileEncoder() :
+  Encoder(encodingHextile, EncoderPlain, -1)
 {
 }
 
@@ -53,14 +53,16 @@ HextileEncoder::~HextileEncoder()
 {
 }
 
-bool HextileEncoder::isSupported()
+bool HextileEncoder::isSupported(const ConnParams& cp)
 {
-  return conn->cp.supportsEncoding(encodingHextile);
+  return cp.supportsEncoding(encodingHextile);
 }
 
-void HextileEncoder::writeRect(const PixelBuffer* pb, const Palette& palette)
+void HextileEncoder::writeRect(const PixelBuffer* pb,
+                               const Palette& palette,
+                               const ConnParams& cp,
+                               rdr::OutStream* os)
 {
-  rdr::OutStream* os = conn->getOutStream();
   switch (pb->getPF().bpp) {
   case 8:
     if (improvedHextile) {
@@ -88,12 +90,11 @@ void HextileEncoder::writeRect(const PixelBuffer* pb, const Palette& palette)
 
 void HextileEncoder::writeSolidRect(int width, int height,
                                     const PixelFormat& pf,
-                                    const rdr::U8* colour)
+                                    const rdr::U8* colour,
+                                    const ConnParams& cp,
+                                    rdr::OutStream* os)
 {
-  rdr::OutStream* os;
   int tiles;
-
-  os = conn->getOutStream();
 
   tiles = ((width + 15)/16) * ((height + 15)/16);
 

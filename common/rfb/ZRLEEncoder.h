@@ -27,15 +27,20 @@ namespace rfb {
 
   class ZRLEEncoder : public Encoder {
   public:
-    ZRLEEncoder(SConnection* conn);
+    ZRLEEncoder();
     virtual ~ZRLEEncoder();
 
-    virtual bool isSupported();
+    virtual bool isSupported(const ConnParams& cp);
 
-    virtual void writeRect(const PixelBuffer* pb, const Palette& palette);
+    virtual void writeRect(const PixelBuffer* pb,
+                           const Palette& palette,
+                           const ConnParams& cp,
+                           rdr::OutStream* os);
     virtual void writeSolidRect(int width, int height,
                                 const PixelFormat& pf,
-                                const rdr::U8* colour);
+                                const rdr::U8* colour,
+                                const ConnParams& cp,
+                                rdr::OutStream* os);
 
   protected:
     void writePaletteTile(const Rect& tile, const PixelBuffer* pb,

@@ -26,10 +26,9 @@
 void TightEncoder::writeMonoRect(int width, int height,
                                  const rdr::UBPP* buffer, int stride,
                                  const PixelFormat& pf,
-                                 const Palette& palette)
+                                 const Palette& palette,
+                                 rdr::OutStream* os)
 {
-  rdr::OutStream* os;
-
   const int streamId = 1;
   rdr::UBPP pal[2];
 
@@ -37,8 +36,6 @@ void TightEncoder::writeMonoRect(int width, int height,
   rdr::OutStream* zos;
 
   assert(palette.size() == 2);
-
-  os = conn->getOutStream();
 
   os->writeU8((streamId | tightExplicitFilter) << 4);
   os->writeU8(tightFilterPalette);
@@ -52,7 +49,7 @@ void TightEncoder::writeMonoRect(int width, int height,
 
   // Set up compression
   length = (width + 7)/8 * height;
-  zos = getZlibOutStream(streamId, monoZlibLevel, length);
+  zos = getZlibOutStream(os, streamId, monoZlibLevel, length);
 
   // Encode the data
   rdr::UBPP bg;
@@ -102,17 +99,16 @@ void TightEncoder::writeMonoRect(int width, int height,
   }
 
   // Finish the zlib stream
-  flushZlibOutStream(zos);
+  flushZlibOutStream(zos, os);
 }
 
 #if (BPP != 8)
 void TightEncoder::writeIndexedRect(int width, int height,
                                     const rdr::UBPP* buffer, int stride,
                                     const PixelFormat& pf,
-                                    const Palette& palette)
+                                    const Palette& palette,
+                                    rdr::OutStream* os)
 {
-  rdr::OutStream* os;
-
   const int streamId = 2;
   rdr::UBPP pal[256];
 
@@ -125,8 +121,6 @@ void TightEncoder::writeIndexedRect(int width, int height,
   assert(palette.size() > 0);
   assert(palette.size() <= 256);
 
-  os = conn->getOutStream();
-
   os->writeU8((streamId | tightExplicitFilter) << 4);
   os->writeU8(tightFilterPalette);
 
@@ -138,7 +132,7 @@ void TightEncoder::writeIndexedRect(int width, int height,
   writePixels((rdr::U8*)pal, pf, palette.size(), os);
 
   // Set up compression
-  zos = getZlibOutStream(streamId, idxZlibLevel, width * height);
+  zos = getZlibOutStream(os, streamId, idxZlibLevel, width * height);
 
   // Encode the data
   pad = stride - width;
@@ -160,6 +154,6 @@ void TightEncoder::writeIndexedRect(int width, int height,
   }
 
   // Finish the zlib stream
-  flushZlibOutStream(zos);
+  flushZlibOutStream(zos, os);
 }
 #endif  // #if (BPP != 8)

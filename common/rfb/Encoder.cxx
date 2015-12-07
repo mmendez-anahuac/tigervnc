@@ -23,10 +23,10 @@
 
 using namespace rfb;
 
-Encoder::Encoder(SConnection *conn_, int encoding_,
-                 enum EncoderFlags flags_, unsigned int maxPaletteSize_) :
+Encoder::Encoder(int encoding_, enum EncoderFlags flags_,
+                 unsigned int maxPaletteSize_) :
   encoding(encoding_), flags(flags_),
-  maxPaletteSize(maxPaletteSize_), conn(conn_)
+  maxPaletteSize(maxPaletteSize_)
 {
 }
 
@@ -35,7 +35,10 @@ Encoder::~Encoder()
 }
 
 void Encoder::writeSolidRect(int width, int height,
-                             const PixelFormat& pf, const rdr::U8* colour)
+                             const PixelFormat& pf,
+                             const rdr::U8* colour,
+                             const ConnParams& cp,
+                             rdr::OutStream* os)
 {
   ManagedPixelBuffer buffer(pf, width, height);
 
@@ -48,10 +51,12 @@ void Encoder::writeSolidRect(int width, int height,
   memcpy(&palcol, colour, pf.bpp/8);
   palette.insert(palcol, 1);
 
-  writeRect(&buffer, palette);
+  writeRect(&buffer, palette, cp, os);
 }
 
-void Encoder::writeSolidRect(const PixelBuffer* pb, const Palette& palette)
+void Encoder::writeSolidRect(const PixelBuffer* pb,
+                             const Palette& palette,
+                             const ConnParams& cp, rdr::OutStream* os)
 {
   rdr::U32 col32;
   rdr::U16 col16;
@@ -77,5 +82,6 @@ void Encoder::writeSolidRect(const PixelBuffer* pb, const Palette& palette)
     break;
   }
 
-  writeSolidRect(pb->width(), pb->height(), pb->getPF(), buffer);
+  writeSolidRect(pb->width(), pb->height(), pb->getPF(),
+                 buffer, cp, os);
 }

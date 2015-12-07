@@ -18,7 +18,7 @@
  */
 #include <rdr/OutStream.h>
 #include <rfb/encodings.h>
-#include <rfb/SConnection.h>
+#include <rfb/ConnParams.h>
 #include <rfb/PixelFormat.h>
 #include <rfb/PixelBuffer.h>
 #include <rfb/Palette.h>
@@ -36,8 +36,8 @@ using namespace rfb;
 #include <rfb/rreEncode.h>
 #undef BPP
 
-RREEncoder::RREEncoder(SConnection* conn) :
-  Encoder(conn, encodingRRE, EncoderPlain, -1)
+RREEncoder::RREEncoder() :
+  Encoder(encodingRRE, EncoderPlain, -1)
 {
 }
 
@@ -45,12 +45,15 @@ RREEncoder::~RREEncoder()
 {
 }
 
-bool RREEncoder::isSupported()
+bool RREEncoder::isSupported(const ConnParams& cp)
 {
-  return conn->cp.supportsEncoding(encodingRRE);
+  return cp.supportsEncoding(encodingRRE);
 }
 
-void RREEncoder::writeRect(const PixelBuffer* pb, const Palette& palette)
+void RREEncoder::writeRect(const PixelBuffer* pb,
+                           const Palette& palette,
+                           const ConnParams& cp,
+                           rdr::OutStream* os)
 {
   rdr::U8* imageBuf;
   int stride;
@@ -60,7 +63,7 @@ void RREEncoder::writeRect(const PixelBuffer* pb, const Palette& palette)
   int h = pb->height();
 
   if (palette.size() == 1) {
-    Encoder::writeSolidRect(pb, palette);
+    Encoder::writeSolidRect(pb, palette, cp, os);
     return;
   }
 
@@ -96,7 +99,6 @@ void RREEncoder::writeRect(const PixelBuffer* pb, const Palette& palette)
 
   bufferCopy.commitBufferRW(pb->getRect());
 
-  rdr::OutStream* os = conn->getOutStream();
   os->writeU32(nSubrects);
   os->writeBytes(mos.data(), mos.length());
   mos.clear();
@@ -104,12 +106,10 @@ void RREEncoder::writeRect(const PixelBuffer* pb, const Palette& palette)
 
 void RREEncoder::writeSolidRect(int width, int height,
                                 const PixelFormat& pf,
-                                const rdr::U8* colour)
+                                const rdr::U8* colour,
+                                const ConnParams& cp,
+                                rdr::OutStream* os)
 {
-  rdr::OutStream* os;
-
-  os = conn->getOutStream();
-
   os->writeU32(0);
   os->writeBytes(colour, pf.bpp/8);
 }

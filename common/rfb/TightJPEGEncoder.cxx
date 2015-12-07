@@ -19,7 +19,7 @@
  */
 #include <rdr/OutStream.h>
 #include <rfb/encodings.h>
-#include <rfb/SConnection.h>
+#include <rfb/ConnParams.h>
 #include <rfb/PixelBuffer.h>
 #include <rfb/TightJPEGEncoder.h>
 #include <rfb/TightConstants.h>
@@ -63,8 +63,8 @@ static const struct TightJPEGConfiguration conf[10] = {
 };
 
 
-TightJPEGEncoder::TightJPEGEncoder(SConnection* conn) :
-  Encoder(conn, encodingTight, EncoderUseNativePF, -1),
+TightJPEGEncoder::TightJPEGEncoder() :
+  Encoder(encodingTight, EncoderUseNativePF, -1),
   qualityLevel(-1), fineQuality(-1), fineSubsampling(subsampleUndefined)
 {
 }
@@ -73,17 +73,17 @@ TightJPEGEncoder::~TightJPEGEncoder()
 {
 }
 
-bool TightJPEGEncoder::isSupported()
+bool TightJPEGEncoder::isSupported(const ConnParams& cp)
 {
-  if (!conn->cp.supportsEncoding(encodingTight))
+  if (!cp.supportsEncoding(encodingTight))
     return false;
 
   // Any one of these indicates support for JPEG
-  if (conn->cp.qualityLevel != -1)
+  if (cp.qualityLevel != -1)
     return true;
-  if (conn->cp.fineQualityLevel != -1)
+  if (cp.fineQualityLevel != -1)
     return true;
-  if (conn->cp.subsampling != -1)
+  if (cp.subsampling != -1)
     return true;
 
   // Tight support, but not JPEG
@@ -101,14 +101,15 @@ void TightJPEGEncoder::setFineQualityLevel(int quality, int subsampling)
   fineSubsampling = subsampling;
 }
 
-void TightJPEGEncoder::writeRect(const PixelBuffer* pb, const Palette& palette)
+void TightJPEGEncoder::writeRect(const PixelBuffer* pb,
+                                 const Palette& palette,
+                                 const ConnParams& cp,
+                                 rdr::OutStream* os)
 {
   const rdr::U8* buffer;
   int stride;
 
   int quality, subsampling;
-
-  rdr::OutStream* os;
 
   buffer = pb->getBuffer(pb->getRect(), &stride);
 
@@ -130,8 +131,6 @@ void TightJPEGEncoder::writeRect(const PixelBuffer* pb, const Palette& palette)
   jc.compress(buffer, stride, pb->getRect(),
               pb->getPF(), quality, subsampling);
 
-  os = conn->getOutStream();
-
   os->writeU8(tightJpeg << 4);
 
   writeCompact(jc.length(), os);
@@ -140,11 +139,13 @@ void TightJPEGEncoder::writeRect(const PixelBuffer* pb, const Palette& palette)
 
 void TightJPEGEncoder::writeSolidRect(int width, int height,
                                       const PixelFormat& pf,
-                                      const rdr::U8* colour)
+                                      const rdr::U8* colour,
+                                      const ConnParams& cp,
+                                      rdr::OutStream* os)
 {
   // FIXME: Add a shortcut in the JPEG compressor to handle this case
   //        without having to use the default fallback which is very slow.
-  Encoder::writeSolidRect(width, height, pf, colour);
+  Encoder::writeSolidRect(width, height, pf, colour, cp, os);
 }
 
 void TightJPEGEncoder::writeCompact(rdr::U32 value, rdr::OutStream* os)

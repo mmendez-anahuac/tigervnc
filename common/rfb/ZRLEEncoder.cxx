@@ -21,7 +21,6 @@
 #include <rfb/encodings.h>
 #include <rfb/ConnParams.h>
 #include <rfb/Palette.h>
-#include <rfb/SConnection.h>
 #include <rfb/ZRLEEncoder.h>
 #include <rfb/Configuration.h>
 
@@ -29,8 +28,8 @@ using namespace rfb;
 
 IntParameter zlibLevel("ZlibLevel","Zlib compression level",-1);
 
-ZRLEEncoder::ZRLEEncoder(SConnection* conn)
-  : Encoder(conn, encodingZRLE, EncoderPlain, 127),
+ZRLEEncoder::ZRLEEncoder()
+  : Encoder(encodingZRLE, EncoderPlain, 127),
   zos(0,0,zlibLevel), mos(129*1024)
 {
   zos.setUnderlying(&mos);
@@ -41,21 +40,22 @@ ZRLEEncoder::~ZRLEEncoder()
   zos.setUnderlying(NULL);
 }
 
-bool ZRLEEncoder::isSupported()
+bool ZRLEEncoder::isSupported(const ConnParams& cp)
 {
-  return conn->cp.supportsEncoding(encodingZRLE);
+  return cp.supportsEncoding(encodingZRLE);
 }
 
-void ZRLEEncoder::writeRect(const PixelBuffer* pb, const Palette& palette)
+void ZRLEEncoder::writeRect(const PixelBuffer* pb,
+                            const Palette& palette,
+                            const ConnParams& cp,
+                            rdr::OutStream* os)
 {
   int x, y;
   Rect tile;
 
-  rdr::OutStream* os;
-
   // A bit of a special case
   if (palette.size() == 1) {
-    Encoder::writeSolidRect(pb, palette);
+    Encoder::writeSolidRect(pb, palette, cp, os);
     return;
   }
 
@@ -82,8 +82,6 @@ void ZRLEEncoder::writeRect(const PixelBuffer* pb, const Palette& palette)
 
   zos.flush();
 
-  os = conn->getOutStream();
-
   os->writeU32(mos.length());
   os->writeBytes(mos.data(), mos.length());
 
@@ -92,11 +90,11 @@ void ZRLEEncoder::writeRect(const PixelBuffer* pb, const Palette& palette)
 
 void ZRLEEncoder::writeSolidRect(int width, int height,
                                  const PixelFormat& pf,
-                                 const rdr::U8* colour)
+                                 const rdr::U8* colour,
+                                 const ConnParams& cp,
+                                 rdr::OutStream* os)
 {
   int tiles;
-
-  rdr::OutStream* os;
 
   tiles = ((width + 63)/64) * ((height + 63)/64);
 
@@ -106,8 +104,6 @@ void ZRLEEncoder::writeSolidRect(int width, int height,
   }
 
   zos.flush();
-
-  os = conn->getOutStream();
 
   os->writeU32(mos.length());
   os->writeBytes(mos.data(), mos.length());

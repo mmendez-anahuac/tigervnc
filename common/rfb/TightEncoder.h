@@ -28,49 +28,66 @@ namespace rfb {
 
   class TightEncoder : public Encoder {
   public:
-    TightEncoder(SConnection* conn);
+    TightEncoder();
     virtual ~TightEncoder();
 
-    virtual bool isSupported();
+    virtual bool isSupported(const ConnParams& cp);
 
     virtual void setCompressLevel(int level);
 
-    virtual void writeRect(const PixelBuffer* pb, const Palette& palette);
+    virtual void writeRect(const PixelBuffer* pb,
+                           const Palette& palette,
+                           const ConnParams& cp,
+                           rdr::OutStream* os);
     virtual void writeSolidRect(int width, int height,
                                 const PixelFormat& pf,
-                                const rdr::U8* colour);
+                                const rdr::U8* colour,
+                                const ConnParams& cp,
+                                rdr::OutStream* os);
 
   protected:
-    void writeMonoRect(const PixelBuffer* pb, const Palette& palette);
-    void writeIndexedRect(const PixelBuffer* pb, const Palette& palette);
-    void writeFullColourRect(const PixelBuffer* pb, const Palette& palette);
+    void writeMonoRect(const PixelBuffer* pb,
+                       const Palette& palette,
+                       rdr::OutStream* os);
+    void writeIndexedRect(const PixelBuffer* pb,
+                          const Palette& palette,
+                          rdr::OutStream* os);
+    void writeFullColourRect(const PixelBuffer* pb,
+                             const Palette& palette,
+                             rdr::OutStream* os);
 
     void writePixels(const rdr::U8* buffer, const PixelFormat& pf,
                      unsigned int count, rdr::OutStream* os);
 
     void writeCompact(rdr::OutStream* os, rdr::U32 value);
 
-    rdr::OutStream* getZlibOutStream(int streamId, int level, size_t length);
-    void flushZlibOutStream(rdr::OutStream* os);
+    rdr::OutStream* getZlibOutStream(rdr::OutStream* os, int streamId,
+                                     int level, size_t length);
+    void flushZlibOutStream(rdr::OutStream* zos, rdr::OutStream* os);
 
   protected:
     // Preprocessor generated, optimised methods
     void writeMonoRect(int width, int height,
                        const rdr::U8* buffer, int stride,
-                       const PixelFormat& pf, const Palette& palette);
+                       const PixelFormat& pf, const Palette& palette,
+                       rdr::OutStream *os);
     void writeMonoRect(int width, int height,
                        const rdr::U16* buffer, int stride,
-                       const PixelFormat& pf, const Palette& palette);
+                       const PixelFormat& pf, const Palette& palette,
+                       rdr::OutStream *os);
     void writeMonoRect(int width, int height,
                        const rdr::U32* buffer, int stride,
-                       const PixelFormat& pf, const Palette& palette);
+                       const PixelFormat& pf, const Palette& palette,
+                       rdr::OutStream *os);
 
     void writeIndexedRect(int width, int height,
                           const rdr::U16* buffer, int stride,
-                          const PixelFormat& pf, const Palette& palette);
+                          const PixelFormat& pf, const Palette& palette,
+                          rdr::OutStream *os);
     void writeIndexedRect(int width, int height,
                           const rdr::U32* buffer, int stride,
-                          const PixelFormat& pf, const Palette& palette);
+                          const PixelFormat& pf, const Palette& palette,
+                          rdr::OutStream *os);
 
     rdr::ZlibOutStream zlibStreams[4];
     rdr::MemOutStream memStream;

@@ -18,14 +18,13 @@
  */
 #include <rdr/OutStream.h>
 #include <rfb/encodings.h>
-#include <rfb/SConnection.h>
 #include <rfb/PixelBuffer.h>
 #include <rfb/RawEncoder.h>
 
 using namespace rfb;
 
-RawEncoder::RawEncoder(SConnection* conn) :
-  Encoder(conn, encodingRaw, EncoderPlain, -1)
+RawEncoder::RawEncoder() :
+  Encoder(encodingRaw, EncoderPlain, -1)
 {
 }
 
@@ -33,23 +32,23 @@ RawEncoder::~RawEncoder()
 {
 }
 
-bool RawEncoder::isSupported()
+bool RawEncoder::isSupported(const ConnParams& cp)
 {
   // Implicitly required;
   return true;
 }
 
-void RawEncoder::writeRect(const PixelBuffer* pb, const Palette& palette)
+void RawEncoder::writeRect(const PixelBuffer* pb,
+                           const Palette& palette,
+                           const ConnParams& cp,
+                           rdr::OutStream* os)
 {
   const rdr::U8* buffer;
   int stride;
 
-  rdr::OutStream* os;
   int h, line_bytes, stride_bytes;
 
   buffer = pb->getBuffer(pb->getRect(), &stride);
-
-  os = conn->getOutStream();
 
   h = pb->height();
   line_bytes = pb->width() * pb->getPF().bpp/8;
@@ -62,12 +61,11 @@ void RawEncoder::writeRect(const PixelBuffer* pb, const Palette& palette)
 
 void RawEncoder::writeSolidRect(int width, int height,
                                 const PixelFormat& pf,
-                                const rdr::U8* colour)
+                                const rdr::U8* colour,
+                                const ConnParams& cp,
+                                rdr::OutStream* os)
 {
-  rdr::OutStream* os;
   int pixels, pixel_size;
-
-  os = conn->getOutStream();
 
   pixels = width*height;
   pixel_size = pf.bpp/8;

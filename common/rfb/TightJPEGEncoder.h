@@ -27,18 +27,23 @@ namespace rfb {
 
   class TightJPEGEncoder : public Encoder {
   public:
-    TightJPEGEncoder(SConnection* conn);
+    TightJPEGEncoder();
     virtual ~TightJPEGEncoder();
 
-    virtual bool isSupported();
+    virtual bool isSupported(const ConnParams& cp);
 
     virtual void setQualityLevel(int level);
     virtual void setFineQualityLevel(int quality, int subsampling);
 
-    virtual void writeRect(const PixelBuffer* pb, const Palette& palette);
+    virtual void writeRect(const PixelBuffer* pb,
+                           const Palette& palette,
+                           const ConnParams& cp,
+                           rdr::OutStream* os);
     virtual void writeSolidRect(int width, int height,
                                 const PixelFormat& pf,
-                                const rdr::U8* colour);
+                                const rdr::U8* colour,
+                                const ConnParams& cp,
+                                rdr::OutStream* os);
 
   protected:
     void writeCompact(rdr::U32 value, rdr::OutStream* os);

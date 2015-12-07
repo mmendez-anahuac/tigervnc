@@ -24,7 +24,6 @@
 #include <rfb/Palette.h>
 #include <rfb/encodings.h>
 #include <rfb/ConnParams.h>
-#include <rfb/SConnection.h>
 #include <rfb/TightEncoder.h>
 #include <rfb/TightConstants.h>
 
@@ -56,8 +55,8 @@ static const TightConf conf[10] = {
   { 9, 9, 9 }  // 9
 };
 
-TightEncoder::TightEncoder(SConnection* conn) :
-  Encoder(conn, encodingTight, EncoderPlain, 256)
+TightEncoder::TightEncoder() :
+  Encoder(encodingTight, EncoderPlain, 256)
 {
   setCompressLevel(-1);
 }
@@ -66,9 +65,9 @@ TightEncoder::~TightEncoder()
 {
 }
 
-bool TightEncoder::isSupported()
+bool TightEncoder::isSupported(const ConnParams& cp)
 {
-  return conn->cp.supportsEncoding(encodingTight);
+  return cp.supportsEncoding(encodingTight);
 }
 
 void TightEncoder::setCompressLevel(int level)
@@ -81,36 +80,39 @@ void TightEncoder::setCompressLevel(int level)
   rawZlibLevel = conf[level].rawZlibLevel;
 }
 
-void TightEncoder::writeRect(const PixelBuffer* pb, const Palette& palette)
+void TightEncoder::writeRect(const PixelBuffer* pb,
+                             const Palette& palette,
+                             const ConnParams& cp,
+                             rdr::OutStream* os)
 {
   switch (palette.size()) {
   case 0:
-    writeFullColourRect(pb, palette);
+    writeFullColourRect(pb, palette, os);
     break;
   case 1:
-    Encoder::writeSolidRect(pb, palette);
+    Encoder::writeSolidRect(pb, palette, cp, os);
     break;
   case 2:
-    writeMonoRect(pb, palette);
+    writeMonoRect(pb, palette, os);
     break;
   default:
-    writeIndexedRect(pb, palette);
+    writeIndexedRect(pb, palette, os);
   }
 }
 
 void TightEncoder::writeSolidRect(int width, int height,
                                   const PixelFormat& pf,
-                                  const rdr::U8* colour)
+                                  const rdr::U8* colour,
+                                  const ConnParams& cp,
+                                  rdr::OutStream* os)
 {
-  rdr::OutStream* os;
-
-  os = conn->getOutStream();
-
   os->writeU8(tightFill << 4);
   writePixels(colour, pf, 1, os);
 }
 
-void TightEncoder::writeMonoRect(const PixelBuffer* pb, const Palette& palette)
+void TightEncoder::writeMonoRect(const PixelBuffer* pb,
+                                 const Palette& palette,
+                                 rdr::OutStream* os)
 {
   const rdr::U8* buffer;
   int stride;
@@ -120,19 +122,21 @@ void TightEncoder::writeMonoRect(const PixelBuffer* pb, const Palette& palette)
   switch (pb->getPF().bpp) {
   case 32:
     writeMonoRect(pb->width(), pb->height(), (rdr::U32*)buffer, stride,
-                  pb->getPF(), palette);
+                  pb->getPF(), palette, os);
     break;
   case 16:
     writeMonoRect(pb->width(), pb->height(), (rdr::U16*)buffer, stride,
-                  pb->getPF(), palette);
+                  pb->getPF(), palette, os);
     break;
   default:
     writeMonoRect(pb->width(), pb->height(), (rdr::U8*)buffer, stride,
-                  pb->getPF(), palette);
+                  pb->getPF(), palette, os);
   }
 }
 
-void TightEncoder::writeIndexedRect(const PixelBuffer* pb, const Palette& palette)
+void TightEncoder::writeIndexedRect(const PixelBuffer* pb,
+                                    const Palette& palette,
+                                    rdr::OutStream* os)
 {
   const rdr::U8* buffer;
   int stride;
@@ -142,30 +146,29 @@ void TightEncoder::writeIndexedRect(const PixelBuffer* pb, const Palette& palett
   switch (pb->getPF().bpp) {
   case 32:
     writeIndexedRect(pb->width(), pb->height(), (rdr::U32*)buffer, stride,
-                     pb->getPF(), palette);
+                     pb->getPF(), palette, os);
     break;
   case 16:
     writeIndexedRect(pb->width(), pb->height(), (rdr::U16*)buffer, stride,
-                     pb->getPF(), palette);
+                     pb->getPF(), palette, os);
     break;
   default:
     // It's more efficient to just do raw pixels
-    writeFullColourRect(pb, palette);
+    writeFullColourRect(pb, palette, os);
   }
 }
 
-void TightEncoder::writeFullColourRect(const PixelBuffer* pb, const Palette& palette)
+void TightEncoder::writeFullColourRect(const PixelBuffer* pb,
+                                       const Palette& palette,
+                                       rdr::OutStream* os)
 {
   const int streamId = 0;
 
-  rdr::OutStream* os;
   rdr::OutStream* zos;
   int length;
 
   const rdr::U8* buffer;
   int stride, h;
-
-  os = conn->getOutStream();
 
   os->writeU8(streamId << 4);
 
@@ -175,7 +178,7 @@ void TightEncoder::writeFullColourRect(const PixelBuffer* pb, const Palette& pal
   else
     length = pb->getRect().area() * 3;
 
-  zos = getZlibOutStream(streamId, rawZlibLevel, length);
+  zos = getZlibOutStream(os, streamId, rawZlibLevel, length);
 
   // And then just dump all the raw pixels
   buffer = pb->getBuffer(pb->getRect(), &stride);
@@ -187,7 +190,7 @@ void TightEncoder::writeFullColourRect(const PixelBuffer* pb, const Palette& pal
   }
 
   // Finish the zlib stream
-  flushZlibOutStream(zos);
+  flushZlibOutStream(zos, os);
 }
 
 void TightEncoder::writePixels(const rdr::U8* buffer, const PixelFormat& pf,
@@ -233,12 +236,14 @@ void TightEncoder::writeCompact(rdr::OutStream* os, rdr::U32 value)
   }
 }
 
-rdr::OutStream* TightEncoder::getZlibOutStream(int streamId, int level, size_t length)
+rdr::OutStream* TightEncoder::getZlibOutStream(rdr::OutStream* os,
+                                               int streamId, int level,
+                                               size_t length)
 {
   // Minimum amount of data to be compressed. This value should not be
   // changed, doing so will break compatibility with existing clients.
   if (length < 12)
-    return conn->getOutStream();
+    return os;
 
   assert(streamId >= 0);
   assert(streamId < 4);
@@ -249,19 +254,17 @@ rdr::OutStream* TightEncoder::getZlibOutStream(int streamId, int level, size_t l
   return &zlibStreams[streamId];
 }
 
-void TightEncoder::flushZlibOutStream(rdr::OutStream* os_)
+void TightEncoder::flushZlibOutStream(rdr::OutStream* zos_,
+                                      rdr::OutStream* os)
 {
-  rdr::OutStream* os;
   rdr::ZlibOutStream* zos;
 
-  zos = dynamic_cast<rdr::ZlibOutStream*>(os_);
+  zos = dynamic_cast<rdr::ZlibOutStream*>(zos_);
   if (zos == NULL)
     return;
 
   zos->flush();
   zos->setUnderlying(NULL);
-
-  os = conn->getOutStream();
 
   writeCompact(os, memStream.length());
   os->writeBytes(memStream.data(), memStream.length());

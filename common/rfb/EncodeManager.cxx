@@ -127,12 +127,12 @@ EncodeManager::EncodeManager(SConnection* conn_) : conn(conn_)
   encoders.resize(encoderClassMax, NULL);
   activeEncoders.resize(encoderTypeMax, encoderRaw);
 
-  encoders[encoderRaw] = new RawEncoder(conn);
-  encoders[encoderRRE] = new RREEncoder(conn);
-  encoders[encoderHextile] = new HextileEncoder(conn);
-  encoders[encoderTight] = new TightEncoder(conn);
-  encoders[encoderTightJPEG] = new TightJPEGEncoder(conn);
-  encoders[encoderZRLE] = new ZRLEEncoder(conn);
+  encoders[encoderRaw] = new RawEncoder();
+  encoders[encoderRRE] = new RREEncoder();
+  encoders[encoderHextile] = new HextileEncoder();
+  encoders[encoderTight] = new TightEncoder();
+  encoders[encoderTightJPEG] = new TightJPEGEncoder();
+  encoders[encoderZRLE] = new ZRLEEncoder();
 
   updates = 0;
   memset(&copyStats, 0, sizeof(copyStats));
@@ -314,7 +314,7 @@ void EncodeManager::prepareEncoders()
     bitmapRLE = indexedRLE = fullColour = encoderHextile;
     break;
   case encodingTight:
-    if (encoders[encoderTightJPEG]->isSupported() &&
+    if (encoders[encoderTightJPEG]->isSupported(conn->cp) &&
         (conn->cp.pf().bpp >= 16))
       fullColour = encoderTightJPEG;
     else
@@ -332,23 +332,23 @@ void EncodeManager::prepareEncoders()
   // Any encoders still unassigned?
 
   if (fullColour == encoderRaw) {
-    if (encoders[encoderTightJPEG]->isSupported() &&
+    if (encoders[encoderTightJPEG]->isSupported(conn->cp) &&
         (conn->cp.pf().bpp >= 16))
       fullColour = encoderTightJPEG;
-    else if (encoders[encoderZRLE]->isSupported())
+    else if (encoders[encoderZRLE]->isSupported(conn->cp))
       fullColour = encoderZRLE;
-    else if (encoders[encoderTight]->isSupported())
+    else if (encoders[encoderTight]->isSupported(conn->cp))
       fullColour = encoderTight;
-    else if (encoders[encoderHextile]->isSupported())
+    else if (encoders[encoderHextile]->isSupported(conn->cp))
       fullColour = encoderHextile;
   }
 
   if (indexed == encoderRaw) {
-    if (encoders[encoderZRLE]->isSupported())
+    if (encoders[encoderZRLE]->isSupported(conn->cp))
       indexed = encoderZRLE;
-    else if (encoders[encoderTight]->isSupported())
+    else if (encoders[encoderTight]->isSupported(conn->cp))
       indexed = encoderTight;
-    else if (encoders[encoderHextile]->isSupported())
+    else if (encoders[encoderHextile]->isSupported(conn->cp))
       indexed = encoderHextile;
   }
 
@@ -361,19 +361,19 @@ void EncodeManager::prepareEncoders()
     bitmapRLE = bitmap;
 
   if (solid == encoderRaw) {
-    if (encoders[encoderTight]->isSupported())
+    if (encoders[encoderTight]->isSupported(conn->cp))
       solid = encoderTight;
-    else if (encoders[encoderRRE]->isSupported())
+    else if (encoders[encoderRRE]->isSupported(conn->cp))
       solid = encoderRRE;
-    else if (encoders[encoderZRLE]->isSupported())
+    else if (encoders[encoderZRLE]->isSupported(conn->cp))
       solid = encoderZRLE;
-    else if (encoders[encoderHextile]->isSupported())
+    else if (encoders[encoderHextile]->isSupported(conn->cp))
       solid = encoderHextile;
   }
 
   // JPEG is the only encoder that can reduce things to grayscale
   if ((conn->cp.subsampling == subsampleGray) &&
-      encoders[encoderTightJPEG]->isSupported()) {
+      encoders[encoderTightJPEG]->isSupported(conn->cp)) {
     solid = bitmap = bitmapRLE = encoderTightJPEG;
     indexed = indexedRLE = fullColour = encoderTightJPEG;
   }
@@ -551,7 +551,8 @@ void EncodeManager::findSolidRect(const Rect& rect, Region *changed,
         encoder = startRect(erp, encoderSolid);
         if (encoder->flags & EncoderUseNativePF) {
           encoder->writeSolidRect(erp.width(), erp.height(),
-                                  pb->getPF(), colourValue);
+                                  pb->getPF(), colourValue,
+                                  conn->cp, conn->getOutStream());
         } else {
           rdr::U32 _buffer2;
           rdr::U8* converted = (rdr::U8*)&_buffer2;
@@ -560,7 +561,8 @@ void EncodeManager::findSolidRect(const Rect& rect, Region *changed,
                                          colourValue, 1);
 
           encoder->writeSolidRect(erp.width(), erp.height(),
-                                  conn->cp.pf(), converted);
+                                  conn->cp.pf(), converted,
+                                  conn->cp, conn->getOutStream());
         }
         endRect();
 
@@ -716,7 +718,7 @@ void EncodeManager::writeSubRect(const Rect& rect, const PixelBuffer *pb)
   if (encoder->flags & EncoderUseNativePF)
     ppb = preparePixelBuffer(rect, pb, false);
 
-  encoder->writeRect(ppb, info.palette);
+  encoder->writeRect(ppb, info.palette, conn->cp, conn->getOutStream());
 
   endRect();
 }

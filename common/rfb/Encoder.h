@@ -23,8 +23,10 @@
 #include <rdr/types.h>
 #include <rfb/Rect.h>
 
+namespace rdr { class OutStream; }
+
 namespace rfb {
-  class SConnection;
+  class ConnParams;
   class PixelBuffer;
   class Palette;
   class PixelFormat;
@@ -39,14 +41,14 @@ namespace rfb {
 
   class Encoder {
   public:
-    Encoder(SConnection* conn, int encoding,
-            enum EncoderFlags flags, unsigned int maxPaletteSize);
+    Encoder(int encoding, enum EncoderFlags flags,
+            unsigned int maxPaletteSize);
     virtual ~Encoder();
 
     // isSupported() should return a boolean indiciating if this encoder
     // is okay to use with the current connection. This usually involves
     // checking the list of encodings in the connection parameters.
-    virtual bool isSupported()=0;
+    virtual bool isSupported(const ConnParams& cp)=0;
 
     virtual void setCompressLevel(int level) {};
     virtual void setQualityLevel(int level) {};
@@ -64,7 +66,8 @@ namespace rfb {
     // The Palette will always be in the PixelFormat specified in
     // ConnParams. An empty palette indicates a large number of colours,
     // but could still be less than maxPaletteSize.
-    virtual void writeRect(const PixelBuffer* pb, const Palette& palette)=0;
+    virtual void writeRect(const PixelBuffer* pb, const Palette& palette,
+                           const ConnParams& cp, rdr::OutStream* os)=0;
 
     // writeSolidRect() is a short cut in order to encode single colour
     // rectangles efficiently without having to create a fake single
@@ -76,12 +79,15 @@ namespace rfb {
     // efficient short cut.
     virtual void writeSolidRect(int width, int height,
                                 const PixelFormat& pf,
-                                const rdr::U8* colour)=0;
+                                const rdr::U8* colour,
+                                const ConnParams& cp,
+                                rdr::OutStream* os)=0;
 
   protected:
     // Helper method for redirecting a single colour palette to the
     // short cut method.
-    void writeSolidRect(const PixelBuffer* pb, const Palette& palette);
+    void writeSolidRect(const PixelBuffer* pb, const Palette& palette,
+                        const ConnParams& cp, rdr::OutStream* os);
 
   public:
     const int encoding;
@@ -89,9 +95,6 @@ namespace rfb {
 
     // Maximum size of the palette per rect
     const unsigned int maxPaletteSize;
-
-  protected:
-    SConnection* conn;
   };
 }
 
