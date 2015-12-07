@@ -122,6 +122,8 @@ EncodeManager::EncodeManager(SConnection* conn_) :
 {
   StatsVector::iterator iter;
 
+  size_t cpuCount;
+
   encoders.resize(encoderClassMax, NULL);
   activeEncoders.resize(encoderTypeMax, encoderRaw);
 
@@ -148,8 +150,17 @@ EncodeManager::EncodeManager(SConnection* conn_) :
   producerCond = new os::Condition(queueMutex);
   consumerCond = new os::Condition(queueMutex);
 
-  // We're not serialising things properly yet, so just one thread
-  threads.push_back(new EncodeThread(this));
+  cpuCount = os::Thread::getSystemCPUCount();
+  if (cpuCount == 0) {
+    vlog.error("Unable to determine the number of CPU cores on this system");
+    cpuCount = 1;
+  } else {
+    vlog.info("Detected %d CPU core(s)", (int)cpuCount);
+    vlog.info("Creating %d encoder thread(s)", (int)cpuCount);
+  }
+
+  while (cpuCount--)
+    threads.push_back(new EncodeThread(this));
 }
 
 EncodeManager::~EncodeManager()
