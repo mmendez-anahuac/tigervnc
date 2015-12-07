@@ -21,7 +21,6 @@
 #define __RFB_TIGHTJPEGENCODER_H__
 
 #include <rfb/Encoder.h>
-#include <rfb/JpegCompressor.h>
 
 namespace rfb {
 
@@ -49,8 +48,6 @@ namespace rfb {
     void writeCompact(rdr::U32 value, rdr::OutStream* os);
 
   protected:
-    JpegCompressor jc;
-
     int qualityLevel;
     int fineQuality;
     int fineSubsampling;

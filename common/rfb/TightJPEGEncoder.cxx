@@ -21,6 +21,7 @@
 #include <rfb/encodings.h>
 #include <rfb/ConnParams.h>
 #include <rfb/PixelBuffer.h>
+#include <rfb/JpegCompressor.h>
 #include <rfb/TightJPEGEncoder.h>
 #include <rfb/TightConstants.h>
 
@@ -64,7 +65,7 @@ static const struct TightJPEGConfiguration conf[10] = {
 
 
 TightJPEGEncoder::TightJPEGEncoder() :
-  Encoder(encodingTight, (EncoderFlags)(EncoderUseNativePF|EncoderOrdered), -1),
+  Encoder(encodingTight, EncoderUseNativePF, -1),
   qualityLevel(-1), fineQuality(-1), fineSubsampling(subsampleUndefined)
 {
 }
@@ -110,6 +111,8 @@ void TightJPEGEncoder::writeRect(const PixelBuffer* pb,
   int stride;
 
   int quality, subsampling;
+
+  JpegCompressor jc;
 
   buffer = pb->getBuffer(pb->getRect(), &stride);
 
