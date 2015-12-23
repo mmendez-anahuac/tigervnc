@@ -37,7 +37,7 @@ using namespace rfb;
 #undef BPP
 
 RREEncoder::RREEncoder() :
-  Encoder(encodingRRE, EncoderPlain, -1)
+  Encoder(encodingRRE, EncoderOrdered, -1)
 {
 }
 

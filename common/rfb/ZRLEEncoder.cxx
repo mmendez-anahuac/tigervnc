@@ -29,7 +29,7 @@ using namespace rfb;
 IntParameter zlibLevel("ZlibLevel","Zlib compression level",-1);
 
 ZRLEEncoder::ZRLEEncoder()
-  : Encoder(encodingZRLE, EncoderPlain, 127),
+  : Encoder(encodingZRLE, EncoderOrdered, 127),
   zos(0,0,zlibLevel), mos(129*1024)
 {
   zos.setUnderlying(&mos);

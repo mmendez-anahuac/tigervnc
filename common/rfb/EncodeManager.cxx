@@ -142,6 +142,8 @@ EncodeManager::EncodeManager(SConnection* conn_) :
       memset(&*iter2, 0, sizeof(EncoderStats));
   }
 
+  encoderQueue.resize(encoderClassMax);
+
   queueMutex = new os::Mutex();
   producerCond = new os::Condition(queueMutex);
   consumerCond = new os::Condition(queueMutex);
@@ -877,6 +879,8 @@ void EncodeManager::EncodeThread::worker()
     EncodeManager::PreparedEntry* prep;
     EncodeManager::OutputEntry* output;
 
+    Encoder* encoder;
+
     // Wait for an available entry in the work queue
     if (manager->workQueue.empty()) {
       manager->consumerCond->wait();
@@ -894,15 +898,61 @@ void EncodeManager::EncodeThread::worker()
     delete entry;
 
     // Encode it
-    output = encodeRect(prep->pb, *prep->cp,
-                        prep->type, *prep->palette);
-    delete prep;
 
-    manager->queueMutex->lock();
+    // Some encodings must be written in the order they are encoded.
+    // The first thread to encounter such an encoding will take
+    // ownership of it and process the queue the other threads
+    // build up.
+    encoder = manager->getEncoder(prep->type);
+    if (encoder->flags & EncoderOrdered) {
+      int klass;
 
-    // And put it on the output queue to be sent off
-    manager->outputQueue.push_back(output);
-    manager->producerCond->signal();
+      klass = manager->activeEncoders[prep->type];
+
+      manager->queueMutex->lock();
+
+      // Queue it
+      manager->encoderQueue[klass].push_back(prep);
+
+      // Anyone else already owning this queue?
+      if (manager->encoderQueue[klass].size() != 1)
+        continue;
+
+      // Nope, so start processing it until it is empty
+      do {
+        // Grab an entry
+        prep = manager->encoderQueue[klass].front();
+
+        manager->queueMutex->unlock();
+
+        // Encode it
+        output = encodeRect(prep->pb, *prep->cp,
+                            prep->type, *prep->palette);
+
+        manager->queueMutex->lock();
+
+        // Pop it off the input queue
+        manager->encoderQueue[klass].pop_front();
+        delete prep;
+
+        // And put it on the output queue to be sent off
+        manager->outputQueue.push_back(output);
+        manager->producerCond->signal();
+      } while (!manager->encoderQueue[klass].empty());
+    } else {
+      // Just a plain simple encoder
+
+      // Encode it
+      output = encodeRect(prep->pb, *prep->cp,
+                          prep->type, *prep->palette);
+      delete prep;
+
+      manager->queueMutex->lock();
+
+      // And put it on the output queue to be sent off
+      manager->outputQueue.push_back(output);
+      manager->producerCond->signal();
+    }
   }
 
   manager->queueMutex->unlock();

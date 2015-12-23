@@ -147,6 +147,8 @@ namespace rfb {
     std::list<RectEntry*> workQueue;
     size_t rectCount;
 
+    std::vector< std::list<PreparedEntry*> > encoderQueue;
+
     std::list<OutputEntry*> outputQueue;
 
     os::Mutex* queueMutex;

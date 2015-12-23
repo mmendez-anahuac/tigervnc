@@ -37,6 +37,9 @@ namespace rfb {
     // Give us the raw frame buffer, and not something converted to
     // the what the client is asking for.
     EncoderUseNativePF = 1 << 0,
+    // Data from this encoder must be written to the transport in
+    // exactly the same order as they were encoded.
+    EncoderOrdered = 1 << 1,
   };
 
   class Encoder {

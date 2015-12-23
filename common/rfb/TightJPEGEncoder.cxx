@@ -64,7 +64,7 @@ static const struct TightJPEGConfiguration conf[10] = {
 
 
 TightJPEGEncoder::TightJPEGEncoder() :
-  Encoder(encodingTight, EncoderUseNativePF, -1),
+  Encoder(encodingTight, (EncoderFlags)(EncoderUseNativePF|EncoderOrdered), -1),
   qualityLevel(-1), fineQuality(-1), fineSubsampling(subsampleUndefined)
 {
 }

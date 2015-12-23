@@ -56,7 +56,7 @@ static const TightConf conf[10] = {
 };
 
 TightEncoder::TightEncoder() :
-  Encoder(encodingTight, EncoderPlain, 256)
+  Encoder(encodingTight, EncoderOrdered, 256)
 {
   setCompressLevel(-1);
 }
