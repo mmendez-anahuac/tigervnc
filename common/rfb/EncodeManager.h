@@ -20,21 +20,34 @@
 #ifndef __RFB_ENCODEMANAGER_H__
 #define __RFB_ENCODEMANAGER_H__
 
+#include <list>
 #include <vector>
+
+#include <os/Thread.h>
 
 #include <rdr/types.h>
 #include <rfb/PixelBuffer.h>
 
+namespace os {
+  class Condition;
+  class Mutex;
+}
+
+namespace rdr {
+  class Exception;
+  class MemOutStream;
+}
+
 namespace rfb {
   class SConnection;
+  class ConnParams;
   class Encoder;
   class UpdateInfo;
+  class Palette;
   class PixelBuffer;
   class RenderedCursor;
   class Region;
   class Rect;
-
-  struct RectInfo;
 
   class EncodeManager {
   public:
@@ -57,12 +70,14 @@ namespace rfb {
     Encoder *startRect(const Rect& rect, int type);
     void endRect();
 
+    Encoder* getEncoder(int type);
+
     void writeCopyRects(const UpdateInfo& ui);
     void writeSolidRects(Region *changed, const PixelBuffer* pb);
     void findSolidRect(const Rect& rect, Region *changed, const PixelBuffer* pb);
     void writeRects(const Region& changed, const PixelBuffer* pb);
 
-    void writeSubRect(const Rect& rect, const PixelBuffer *pb);
+    void queueSubRect(const Rect& rect, const PixelBuffer *pb);
 
     bool checkSolidTile(const Rect& r, const rdr::U8* colourValue,
                         const PixelBuffer *pb);
@@ -71,14 +86,7 @@ namespace rfb {
     void extendSolidAreaByPixel(const Rect& r, const Rect& sr,
                                 const rdr::U8* colourValue,
                                 const PixelBuffer *pb, Rect* er);
-
-    PixelBuffer* preparePixelBuffer(const Rect& rect,
-                                    const PixelBuffer *pb, bool convert);
-
-    bool analyseRect(const PixelBuffer *pb,
-                     struct RectInfo *info, int maxColours);
-
-  protected:
+  private:
     // Preprocessor generated, optimised methods
     inline bool checkSolidTile(const Rect& r, rdr::U8 colourValue,
                                const PixelBuffer *pb);
@@ -87,15 +95,8 @@ namespace rfb {
     inline bool checkSolidTile(const Rect& r, rdr::U32 colourValue,
                                const PixelBuffer *pb);
 
-    inline bool analyseRect(int width, int height,
-                            const rdr::U8* buffer, int stride,
-                            struct RectInfo *info, int maxColours);
-    inline bool analyseRect(int width, int height,
-                            const rdr::U16* buffer, int stride,
-                            struct RectInfo *info, int maxColours);
-    inline bool analyseRect(int width, int height,
-                            const rdr::U32* buffer, int stride,
-                            struct RectInfo *info, int maxColours);
+  private:
+    void flush();
 
   protected:
     SConnection *conn;
@@ -117,17 +118,91 @@ namespace rfb {
     int activeType;
     int beforeLength;
 
-    class OffsetPixelBuffer : public FullFramePixelBuffer {
+    class RectEntry {
     public:
-      OffsetPixelBuffer() {}
-      virtual ~OffsetPixelBuffer() {}
-
-      void update(const PixelFormat& pf, int width, int height,
-                  const rdr::U8* data_, int stride);
+      Rect rect;
+      const PixelBuffer* pb;
+      const ConnParams* cp;
     };
 
-    OffsetPixelBuffer offsetPixelBuffer;
-    ManagedPixelBuffer convertedPixelBuffer;
+    class PreparedEntry {
+    public:
+      ~PreparedEntry();
+    public:
+      const PixelBuffer* pb;
+      const ConnParams* cp;
+      int type;
+      const Palette* palette;
+    };
+
+    class OutputEntry {
+    public:
+      ~OutputEntry();
+    public:
+      Rect rect;
+      int type;
+      const rdr::MemOutStream* buffer;
+    };
+
+    std::list<RectEntry*> workQueue;
+    size_t rectCount;
+
+    std::list<OutputEntry*> outputQueue;
+
+    os::Mutex* queueMutex;
+    os::Condition* producerCond;
+    os::Condition* consumerCond;
+
+  protected:
+    class EncodeThread : public os::Thread {
+    public:
+      EncodeThread(EncodeManager* manager);
+      ~EncodeThread();
+
+      void stop();
+
+    protected:
+      void worker();
+
+      PreparedEntry* prepareRect(const Rect& rect,
+                                 const PixelBuffer* pb,
+                                 const ConnParams& cp);
+
+      OutputEntry* encodeRect(const PixelBuffer* pb,
+                              const ConnParams& cp,
+                              int type,
+                              const Palette& palette);
+
+      const PixelBuffer* preparePixelBuffer(const Rect& rect,
+                                            const PixelBuffer* pb,
+                                            const ConnParams& cp,
+                                            bool convert);
+
+      bool analyseRect(const PixelBuffer* pb, int* rleRuns,
+                       Palette* palette, int maxColours);
+
+    private:
+      // Preprocessor generated, optimised methods
+      inline bool analyseRect(int width, int height,
+                              const rdr::U8* buffer, int stride,
+                              int* rleRuns, Palette* palette,
+                              int maxColours);
+      inline bool analyseRect(int width, int height,
+                              const rdr::U16* buffer, int stride,
+                              int* rleRuns, Palette* palette,
+                              int maxColours);
+      inline bool analyseRect(int width, int height,
+                              const rdr::U32* buffer, int stride,
+                              int* rleRuns, Palette* palette,
+                              int maxColours);
+
+    private:
+      EncodeManager* manager;
+
+      bool stopRequested;
+    };
+
+    std::list<EncodeThread*> threads;
   };
 }
 

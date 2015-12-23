@@ -50,17 +50,21 @@ inline bool EncodeManager::checkSolidTile(const Rect& r,
   return true;
 }
 
-inline bool EncodeManager::analyseRect(int width, int height,
-                                       const rdr::UBPP* buffer, int stride,
-                                       struct RectInfo *info, int maxColours)
+inline bool EncodeManager::EncodeThread::analyseRect(int width,
+                                                     int height,
+                                                     const rdr::UBPP* buffer,
+                                                     int stride,
+                                                     int* rleRuns,
+                                                     Palette* palette,
+                                                     int maxColours)
 {
   int pad;
 
   rdr::UBPP colour;
   int count;
 
-  info->rleRuns = 0;
-  info->palette.clear();
+  *rleRuns = 0;
+  palette->clear();
 
   pad = stride - width;
 
@@ -71,13 +75,13 @@ inline bool EncodeManager::analyseRect(int width, int height,
     int w_ = width;
     while (w_--) {
       if (*buffer != colour) {
-        if (!info->palette.insert(colour, count))
+        if (!palette->insert(colour, count))
           return false;
-        if (info->palette.size() > maxColours)
+        if (palette->size() > maxColours)
           return false;
 
         // FIXME: This doesn't account for switching lines
-        info->rleRuns++;
+        (*rleRuns)++;
 
         colour = *buffer;
         count = 0;
@@ -89,9 +93,9 @@ inline bool EncodeManager::analyseRect(int width, int height,
   }
 
   // Make sure the final pixels also get counted
-  if (!info->palette.insert(colour, count))
+  if (!palette->insert(colour, count))
     return false;
-  if (info->palette.size() > maxColours)
+  if (palette->size() > maxColours)
     return false;
 
   return true;

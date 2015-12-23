@@ -32,6 +32,8 @@
 #include <rfb/TightEncoder.h>
 #include <rfb/TightJPEGEncoder.h>
 
+#include <os/Mutex.h>
+
 using namespace rfb;
 
 static LogWriter vlog("EncodeManager");
@@ -67,11 +69,6 @@ enum EncoderType {
   encoderIndexedRLE,
   encoderFullColour,
   encoderTypeMax,
-};
-
-struct RectInfo {
-  int rleRuns;
-  Palette palette;
 };
 
 };
@@ -120,7 +117,8 @@ static const char *encoderTypeName(EncoderType type)
   return "Unknown Encoder Type";
 }
 
-EncodeManager::EncodeManager(SConnection* conn_) : conn(conn_)
+EncodeManager::EncodeManager(SConnection* conn_) :
+  conn(conn_), rectCount(0)
 {
   StatsVector::iterator iter;
 
@@ -143,11 +141,27 @@ EncodeManager::EncodeManager(SConnection* conn_) : conn(conn_)
     for (iter2 = iter->begin();iter2 != iter->end();++iter2)
       memset(&*iter2, 0, sizeof(EncoderStats));
   }
+
+  queueMutex = new os::Mutex();
+  producerCond = new os::Condition(queueMutex);
+  consumerCond = new os::Condition(queueMutex);
+
+  // We're not serialising things properly yet, so just one thread
+  threads.push_back(new EncodeThread(this));
 }
 
 EncodeManager::~EncodeManager()
 {
   std::vector<Encoder*>::iterator iter;
+
+  while (!threads.empty()) {
+    delete threads.back();
+    threads.pop_back();
+  }
+
+  delete consumerCond;
+  delete producerCond;
+  delete queueMutex;
 
   logStats();
 
@@ -284,7 +298,8 @@ void EncodeManager::writeUpdate(const UpdateInfo& ui, const PixelBuffer* pb,
       Rect renderedCursorRect;
 
       renderedCursorRect = renderedCursor->getEffectiveRect();
-      writeSubRect(renderedCursorRect, renderedCursor);
+      queueSubRect(renderedCursorRect, renderedCursor);
+      flush();
     }
 
     conn->writer()->writeFramebufferUpdateEnd();
@@ -446,7 +461,7 @@ Encoder *EncodeManager::startRect(const Rect& rect, int type)
   equiv = 12 + rect.area() * conn->cp.pf().bpp/8;
   stats[klass][activeType].equivalent += equiv;
 
-  encoder = encoders[klass];
+  encoder = getEncoder(type);
   conn->writer()->startRect(rect, encoder->encoding);
 
   return encoder;
@@ -463,6 +478,14 @@ void EncodeManager::endRect()
 
   klass = activeEncoders[activeType];
   stats[klass][activeType].bytes += length;
+}
+
+Encoder *EncodeManager::getEncoder(int type)
+{
+  int klass;
+
+  klass = activeEncoders[type];
+  return encoders[klass];
 }
 
 void EncodeManager::writeCopyRects(const UpdateInfo& ui)
@@ -602,6 +625,8 @@ void EncodeManager::writeRects(const Region& changed, const PixelBuffer* pb)
   std::vector<Rect> rects;
   std::vector<Rect>::const_iterator rect;
 
+  assert(workQueue.empty());
+
   changed.get_rects(&rects);
   for (rect = rects.begin(); rect != rects.end(); ++rect) {
     int w, h, sw, sh;
@@ -612,7 +637,7 @@ void EncodeManager::writeRects(const Region& changed, const PixelBuffer* pb)
 
     // No split necessary?
     if (((w*h) < SubRectMaxArea) && (w < SubRectMaxWidth)) {
-      writeSubRect(*rect, pb);
+      queueSubRect(*rect, pb);
       continue;
     }
 
@@ -633,94 +658,30 @@ void EncodeManager::writeRects(const Region& changed, const PixelBuffer* pb)
         if (sr.br.x > rect->br.x)
           sr.br.x = rect->br.x;
 
-        writeSubRect(sr, pb);
+        queueSubRect(sr, pb);
       }
     }
   }
+
+  flush();
 }
 
-void EncodeManager::writeSubRect(const Rect& rect, const PixelBuffer *pb)
+void EncodeManager::queueSubRect(const Rect& rect, const PixelBuffer *pb)
 {
-  PixelBuffer *ppb;
+  RectEntry *entry;
 
-  Encoder *encoder;
+  entry = new RectEntry;
 
-  struct RectInfo info;
-  unsigned int divisor, maxColours;
+  entry->rect = rect;
+  entry->pb = pb;
+  entry->cp = &conn->cp;
 
-  bool useRLE;
-  EncoderType type;
-
-  // FIXME: This is roughly the algorithm previously used by the Tight
-  //        encoder. It seems a bit backwards though, that higher
-  //        compression setting means spending less effort in building
-  //        a palette. It might be that they figured the increase in
-  //        zlib setting compensated for the loss.
-  if (conn->cp.compressLevel == -1)
-    divisor = 2 * 8;
-  else
-    divisor = conn->cp.compressLevel * 8;
-  if (divisor < 4)
-    divisor = 4;
-
-  maxColours = rect.area()/divisor;
-
-  // Special exception inherited from the Tight encoder
-  if (activeEncoders[encoderFullColour] == encoderTightJPEG) {
-    if ((conn->cp.compressLevel != -1) && (conn->cp.compressLevel < 2))
-      maxColours = 24;
-    else
-      maxColours = 96;
-  }
-
-  if (maxColours < 2)
-    maxColours = 2;
-
-  encoder = encoders[activeEncoders[encoderIndexedRLE]];
-  if (maxColours > encoder->maxPaletteSize)
-    maxColours = encoder->maxPaletteSize;
-  encoder = encoders[activeEncoders[encoderIndexed]];
-  if (maxColours > encoder->maxPaletteSize)
-    maxColours = encoder->maxPaletteSize;
-
-  ppb = preparePixelBuffer(rect, pb, true);
-
-  if (!analyseRect(ppb, &info, maxColours))
-    info.palette.clear();
-
-  // Different encoders might have different RLE overhead, but
-  // here we do a guess at RLE being the better choice if reduces
-  // the pixel count by 50%.
-  useRLE = info.rleRuns <= (rect.area() * 2);
-
-  switch (info.palette.size()) {
-  case 0:
-    type = encoderFullColour;
-    break;
-  case 1:
-    type = encoderSolid;
-    break;
-  case 2:
-    if (useRLE)
-      type = encoderBitmapRLE;
-    else
-      type = encoderBitmap;
-    break;
-  default:
-    if (useRLE)
-      type = encoderIndexedRLE;
-    else
-      type = encoderIndexed;
-  }
-
-  encoder = startRect(rect, type);
-
-  if (encoder->flags & EncoderUseNativePF)
-    ppb = preparePixelBuffer(rect, pb, false);
-
-  encoder->writeRect(ppb, info.palette, conn->cp, conn->getOutStream());
-
-  endRect();
+  // Put it on the queue and wake a single thread
+  queueMutex->lock();
+  workQueue.push_back(entry);
+  rectCount++;
+  consumerCond->signal();
+  queueMutex->unlock();
 }
 
 bool EncodeManager::checkSolidTile(const Rect& r, const rdr::U8* colourValue,
@@ -832,39 +793,277 @@ void EncodeManager::extendSolidAreaByPixel(const Rect& r, const Rect& sr,
   er->br.x = cx;
 }
 
-PixelBuffer* EncodeManager::preparePixelBuffer(const Rect& rect,
-                                               const PixelBuffer *pb,
-                                               bool convert)
+void EncodeManager::flush()
 {
+  rdr::OutStream* os;
+
+  queueMutex->lock();
+
+  os = conn->getOutStream();
+
+  // Wait until we've gotten as many output entries back as we gave
+  // rect entries in
+  while (rectCount > 0) {
+    EncodeManager::OutputEntry* output;
+
+    if (outputQueue.empty()) {
+      producerCond->wait();
+      continue;
+    }
+
+    output = outputQueue.front();
+    outputQueue.pop_front();
+
+    queueMutex->unlock();
+
+    startRect(output->rect, output->type);
+    os->writeBytes(output->buffer->data(), output->buffer->length());
+    endRect();
+
+    delete output;
+    rectCount--;
+
+    queueMutex->lock();
+  }
+
+  queueMutex->unlock();
+}
+
+EncodeManager::PreparedEntry::~PreparedEntry()
+{
+  delete pb;
+  delete palette;
+}
+
+EncodeManager::OutputEntry::~OutputEntry()
+{
+  delete buffer;
+}
+
+EncodeManager::EncodeThread::EncodeThread(EncodeManager* manager)
+{
+  this->manager = manager;
+
+  stopRequested = false;
+
+  start();
+}
+
+EncodeManager::EncodeThread::~EncodeThread()
+{
+  stop();
+  wait();
+}
+
+void EncodeManager::EncodeThread::stop()
+{
+  os::AutoMutex a(manager->queueMutex);
+
+  if (!isRunning())
+    return;
+
+  stopRequested = true;
+
+  // We can't wake just this thread, so wake everyone
+  manager->consumerCond->broadcast();
+}
+
+void EncodeManager::EncodeThread::worker()
+{
+  manager->queueMutex->lock();
+
+  while (!stopRequested) {
+    EncodeManager::RectEntry* entry;
+    EncodeManager::PreparedEntry* prep;
+    EncodeManager::OutputEntry* output;
+
+    // Wait for an available entry in the work queue
+    if (manager->workQueue.empty()) {
+      manager->consumerCond->wait();
+      continue;
+    }
+
+    // Pop it off the queue
+    entry = manager->workQueue.front();
+    manager->workQueue.pop_front();
+
+    manager->queueMutex->unlock();
+
+    // Analyse the rect
+    prep = prepareRect(entry->rect, entry->pb, *entry->cp);
+    delete entry;
+
+    // Encode it
+    output = encodeRect(prep->pb, *prep->cp,
+                        prep->type, *prep->palette);
+    delete prep;
+
+    manager->queueMutex->lock();
+
+    // And put it on the output queue to be sent off
+    manager->outputQueue.push_back(output);
+    manager->producerCond->signal();
+  }
+
+  manager->queueMutex->unlock();
+}
+
+EncodeManager::PreparedEntry* EncodeManager::EncodeThread::prepareRect(const Rect& rect,
+                                                                       const PixelBuffer* pb,
+                                                                       const ConnParams& cp)
+{
+  const PixelBuffer* ppb;
+
+  Encoder* encoder;
+
+  int rleRuns;
+  Palette* palette;
+  unsigned int divisor, maxColours;
+
+  bool useRLE;
+  EncoderType type;
+
+  PreparedEntry* entry;
+
+  // FIXME: This is roughly the algorithm previously used by the Tight
+  //        encoder. It seems a bit backwards though, that higher
+  //        compression setting means spending less effort in building
+  //        a palette. It might be that they figured the increase in
+  //        zlib setting compensated for the loss.
+  if (cp.compressLevel == -1)
+    divisor = 2 * 8;
+  else
+    divisor = cp.compressLevel * 8;
+  if (divisor < 4)
+    divisor = 4;
+
+  maxColours = rect.area()/divisor;
+
+  // Special exception inherited from the Tight encoder
+  if (manager->activeEncoders[encoderFullColour] == encoderTightJPEG) {
+    if ((cp.compressLevel != -1) && (cp.compressLevel < 2))
+      maxColours = 24;
+    else
+      maxColours = 96;
+  }
+
+  if (maxColours < 2)
+    maxColours = 2;
+
+  encoder = manager->getEncoder(encoderIndexedRLE);
+  if (maxColours > encoder->maxPaletteSize)
+    maxColours = encoder->maxPaletteSize;
+  encoder = manager->getEncoder(encoderIndexed);
+  if (maxColours > encoder->maxPaletteSize)
+    maxColours = encoder->maxPaletteSize;
+
+  ppb = preparePixelBuffer(rect, pb, cp, true);
+  palette = new Palette;
+
+  if (!analyseRect(ppb, &rleRuns, palette, maxColours))
+    palette->clear();
+
+  // Different encoders might have different RLE overhead, but
+  // here we do a guess at RLE being the better choice if reduces
+  // the pixel count by 50%.
+  useRLE = rleRuns <= (rect.area() * 2);
+
+  switch (palette->size()) {
+  case 0:
+    type = encoderFullColour;
+    break;
+  case 1:
+    type = encoderSolid;
+    break;
+  case 2:
+    if (useRLE)
+      type = encoderBitmapRLE;
+    else
+      type = encoderBitmap;
+    break;
+  default:
+    if (useRLE)
+      type = encoderIndexedRLE;
+    else
+      type = encoderIndexed;
+  }
+
+  encoder = manager->getEncoder(type);
+
+  if (encoder->flags & EncoderUseNativePF) {
+    delete ppb;
+    ppb = preparePixelBuffer(rect, pb, cp, false);
+  }
+
+  entry = new PreparedEntry;
+
+  entry->pb = ppb;
+  entry->cp = &cp;
+  entry->type = type;
+  entry->palette = palette;
+
+  return entry;
+}
+
+EncodeManager::OutputEntry* EncodeManager::EncodeThread::encodeRect(const PixelBuffer* pb,
+                                                                    const ConnParams& cp,
+                                                                    int type,
+                                                                    const Palette& palette)
+{
+  rdr::MemOutStream* bufferStream;
+  Encoder* encoder;
+
+  OutputEntry* entry;
+
+  bufferStream = new rdr::MemOutStream();
+
+  encoder = manager->getEncoder(type);
+  encoder->writeRect(pb, palette, cp, bufferStream);
+
+  entry = new OutputEntry;
+
+  entry->rect = pb->getRect();
+  entry->type = type;
+  entry->buffer = bufferStream;
+
+  return entry;
+}
+
+const PixelBuffer* EncodeManager::EncodeThread::preparePixelBuffer(const Rect& rect,
+                                                                   const PixelBuffer* pb,
+                                                                   const ConnParams& cp,
+                                                                   bool convert)
+{
+  ModifiablePixelBuffer* ppb;
+
   const rdr::U8* buffer;
   int stride;
 
   // Do wo need to convert the data?
-  if (convert && !conn->cp.pf().equal(pb->getPF())) {
-    convertedPixelBuffer.setPF(conn->cp.pf());
-    convertedPixelBuffer.setSize(rect.width(), rect.height());
+  if (convert && !cp.pf().equal(pb->getPF())) {
+    ppb = new ManagedPixelBuffer(cp.pf(), rect.width(), rect.height());
 
     buffer = pb->getBuffer(rect, &stride);
-    convertedPixelBuffer.imageRect(pb->getPF(),
-                                   convertedPixelBuffer.getRect(),
-                                   buffer, stride);
+    ppb->imageRect(pb->getPF(), ppb->getRect(), buffer, stride);
 
-    return &convertedPixelBuffer;
+    return ppb;
   }
 
-  // Otherwise we still need to shift the coordinates. We have our own
-  // abusive subclass of FullFramePixelBuffer for this.
+  // Otherwise we still need to shift the coordinates
 
   buffer = pb->getBuffer(rect, &stride);
 
-  offsetPixelBuffer.update(pb->getPF(), rect.width(), rect.height(),
-                           buffer, stride);
+  ppb = new FullFramePixelBuffer(pb->getPF(),
+                                 rect.width(), rect.height(),
+                                 (rdr::U8*)buffer, stride);
 
-  return &offsetPixelBuffer;
+  return ppb;
 }
 
-bool EncodeManager::analyseRect(const PixelBuffer *pb,
-                                struct RectInfo *info, int maxColours)
+bool EncodeManager::EncodeThread::analyseRect(const PixelBuffer* pb,
+                                              int* rleRuns,
+                                              Palette* palette,
+                                              int maxColours)
 {
   const rdr::U8* buffer;
   int stride;
@@ -875,29 +1074,16 @@ bool EncodeManager::analyseRect(const PixelBuffer *pb,
   case 32:
     return analyseRect(pb->width(), pb->height(),
                        (const rdr::U32*)buffer, stride,
-                       info, maxColours);
+                       rleRuns, palette, maxColours);
   case 16:
     return analyseRect(pb->width(), pb->height(),
                        (const rdr::U16*)buffer, stride,
-                       info, maxColours);
+                       rleRuns, palette, maxColours);
   default:
     return analyseRect(pb->width(), pb->height(),
                        (const rdr::U8*)buffer, stride,
-                       info, maxColours);
+                       rleRuns, palette, maxColours);
   }
-}
-
-void EncodeManager::OffsetPixelBuffer::update(const PixelFormat& pf,
-                                              int width, int height,
-                                              const rdr::U8* data_,
-                                              int stride_)
-{
-  format = pf;
-  width_ = width;
-  height_ = height;
-  // Forced cast. We never write anything though, so it should be safe.
-  data = (rdr::U8*)data_;
-  stride = stride_;
 }
 
 // Preprocessor generated, optimised methods
