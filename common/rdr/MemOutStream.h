@@ -47,13 +47,14 @@ namespace rdr {
     }
 
     int length() { return ptr - start; }
+    int length() const { return ptr - start; }
     void clear() { ptr = start; };
     void clearAndZero() { memset(start, 0, ptr-start); clear(); }
     void reposition(int pos) { ptr = start + pos; }
 
     // data() returns a pointer to the buffer.
 
-    const void* data() { return (const void*)start; }
+    const void* data() const { return (const void*)start; }
 
   protected:
 
