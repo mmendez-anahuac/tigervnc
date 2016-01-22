@@ -284,29 +284,23 @@ void Viewport::resize(int x, int y, int w, int h)
 int Viewport::handle(int event)
 {
   char *buffer;
-  int ret;
   int buttonMask, wheelMask;
   DownMap::const_iterator iter;
 
   switch (event) {
   case FL_PASTE:
-    buffer = new char[Fl::event_length() + 1];
-
-    // This is documented as to ASCII, but actually does to 8859-1
-    ret = fl_utf8toa(Fl::event_text(), Fl::event_length(), buffer,
-                     Fl::event_length() + 1);
-    assert(ret < (Fl::event_length() + 1));
+    buffer = utf8ToLatin1(Fl::event_text(), Fl::event_length());
 
     vlog.debug("Sending clipboard data (%d bytes)", (int)strlen(buffer));
 
     try {
-      cc->writer()->clientCutText(buffer, ret);
+      cc->writer()->clientCutText(buffer, strlen(buffer));
     } catch (rdr::Exception& e) {
       vlog.error("%s", e.str());
       exit_vncviewer(e.str());
     }
 
-    delete [] buffer;
+    strFree(buffer);
 
     return 1;
 

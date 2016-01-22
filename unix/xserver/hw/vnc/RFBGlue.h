@@ -49,6 +49,11 @@ void vncListParams(int width, int nameWidth);
 int vncGetSocketPort(int fd);
 int vncIsTCPPortUsed(int port);
 
+char* vncLatin1ToUTF8(const char* src, size_t bytes);
+char* vncUTF8ToLatin1(const char* src, size_t bytes);
+
+void vncStrFree(char* str);
+
 #ifdef __cplusplus
 }
 #endif
