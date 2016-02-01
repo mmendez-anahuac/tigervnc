@@ -41,34 +41,36 @@ public:
   const char *connectionInfo();
 
   // FdInStreamBlockCallback methods
-  void blockCallback();
+  virtual void blockCallback();
 
   // Callback when socket is ready (or broken)
   static void socketEvent(FL_SOCKET fd, void *data);
 
   // CConnection callback methods
-  void serverInit();
+  virtual void serverInit();
 
-  void setDesktopSize(int w, int h);
-  void setExtendedDesktopSize(unsigned reason, unsigned result,
+  virtual void setDesktopSize(int w, int h);
+  virtual void setExtendedDesktopSize(unsigned reason, unsigned result,
                               int w, int h, const rfb::ScreenSet& layout);
 
-  void setName(const char* name);
+  virtual void setName(const char* name);
 
-  void setColourMapEntries(int firstColour, int nColours, rdr::U16* rgbs);
+  virtual void setColourMapEntries(int firstColour, int nColours, rdr::U16* rgbs);
 
-  void bell();
+  virtual void bell();
 
-  void cutText(const char* str, rdr::U32 len);
+  virtual void cutText(const char* str, rdr::U32 len);
 
-  void framebufferUpdateStart();
-  void framebufferUpdateEnd();
-  void dataRect(const rfb::Rect& r, int encoding);
+  virtual void framebufferUpdateStart();
+  virtual void framebufferUpdateEnd();
+  virtual void dataRect(const rfb::Rect& r, int encoding);
 
-  void setCursor(int width, int height, const rfb::Point& hotspot,
-                 void* data, void* mask);
+  virtual void setCursor(int width, int height,
+                         const rfb::Point& hotspot,
+                         void* data, void* mask);
 
-  void fence(rdr::U32 flags, unsigned len, const char data[]);
+  virtual void fence(rdr::U32 flags, unsigned len, const char data[]);
+
 
 private:
 
