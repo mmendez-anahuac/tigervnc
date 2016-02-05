@@ -56,6 +56,8 @@ namespace rfb {
   const int pseudoEncodingSubsamp8X = -764;
   const int pseudoEncodingSubsamp16X = -763;
 
+  const int pseudoEncodingExtendedClipboard = 0xC0A1E5CE;
+
   int encodingNum(const char* name);
   const char* encodingName(int num);
 }

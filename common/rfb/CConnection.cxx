@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include <rfb/Exception.h>
+#include <rfb/clipboardTypes.h>
 #include <rfb/fenceTypes.h>
 #include <rfb/CMsgReader.h>
 #include <rfb/CMsgWriter.h>
@@ -351,31 +352,110 @@ void CConnection::cutText(const char* str, rdr::U32 len)
   remoteClipboardAvailable();
 }
 
+void CConnection::clipboardCaps(rdr::U32 flags,
+                                const rdr::U32* lengths)
+{
+  rdr::U32 sizes[] = { 0 };
+
+  CMsgHandler::clipboardCaps(flags, lengths);
+
+  writer()->writeClipboardCaps(rfb::clipboardUTF8 |
+                               rfb::clipboardRequest |
+                               rfb::clipboardPeek |
+                               rfb::clipboardNotify |
+                               rfb::clipboardProvide,
+                               sizes);
+}
+
+void CConnection::clipboardRequest(rdr::U32 flags)
+{
+  if (!(flags & rfb::clipboardUTF8))
+    return;
+  if (!hasLocalClipboard)
+    return;
+  localClipboardRequest();
+}
+
+void CConnection::clipboardPeek(rdr::U32 flags)
+{
+  if (!hasLocalClipboard)
+    return;
+  if (cp.clipboardFlags() & rfb::clipboardNotify)
+    writer()->writeClipboardNotify(rfb::clipboardUTF8);
+}
+
+void CConnection::clipboardNotify(rdr::U32 flags)
+{
+  strFree(clipboard);
+  clipboard = NULL;
+
+  if (flags & rfb::clipboardUTF8)
+    remoteClipboardAvailable();
+  else
+    remoteClipboardUnavailable();
+}
+
+void CConnection::clipboardProvide(rdr::U32 flags,
+                                   const size_t* lengths,
+                                   const rdr::U8* const* data)
+{
+  if (!(flags & rfb::clipboardUTF8))
+    return;
+
+  strFree(clipboard);
+  clipboard = NULL;
+
+  clipboard = convertLF((const char*)data[0], lengths[0]);
+
+  remoteClipboardData(clipboard);
+}
+
 void CConnection::remoteClipboardRequest()
 {
   if (clipboard != NULL) {
     remoteClipboardData(clipboard);
     return;
   }
+
+  if (cp.supportsExtendedClipboard &&
+      (cp.clipboardFlags() & rfb::clipboardRequest))
+    writer()->writeClipboardRequest(rfb::clipboardUTF8);
 }
 
 void CConnection::localClipboardAvailable()
 {
   hasLocalClipboard = true;
-  localClipboardRequest();
+
+  if (cp.supportsExtendedClipboard &&
+      (cp.clipboardFlags() & rfb::clipboardNotify))
+    writer()->writeClipboardNotify(rfb::clipboardUTF8);
+  else
+    localClipboardRequest();
 }
 
 void CConnection::localClipboardUnavailable()
 {
   hasLocalClipboard = false;
+
+  if (cp.supportsExtendedClipboard &&
+      (cp.clipboardFlags() & rfb::clipboardNotify))
+    writer()->writeClipboardNotify(0);
 }
 
 void CConnection::localClipboardData(const char* data)
 {
-  CharArray filtered(convertLF(data));
-  CharArray latin1(filtered.buf);
+  if (cp.supportsExtendedClipboard &&
+      (cp.clipboardFlags() & rfb::clipboardProvide)) {
+    CharArray filtered(convertCRLF(data));
+    size_t sizes[1] = { strlen(filtered.buf) + 1 };
+    const rdr::U8* data[1] = { (const rdr::U8*)filtered.buf };
+    writer()->writeClipboardProvide(rfb::clipboardUTF8, sizes, data);
+  } else {
+    CharArray filtered(convertLF(data));
+    CharArray latin1(filtered.buf);
 
-  writer()->writeCutText(latin1.buf, strlen(latin1.buf));
+    writer()->writeCutText(latin1.buf, strlen(latin1.buf));
+  }
 }
 
 void CConnection::authSuccess()

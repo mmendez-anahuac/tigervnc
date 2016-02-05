@@ -84,6 +84,9 @@ namespace rfb {
 
     void setEncodings(int nEncodings, const rdr::S32* encodings);
 
+    rdr::U32 clipboardFlags() const { return clipFlags; }
+    void setClipboardCaps(rdr::U32 flags, const rdr::U32* lengths);
+
     bool useCopyRect;
 
     bool supportsLocalCursor;
@@ -92,6 +95,7 @@ namespace rfb {
     bool supportsExtendedDesktopSize;
     bool supportsDesktopRename;
     bool supportsLastRect;
+    bool supportsExtendedClipboard;
 
     bool supportsSetDesktopSize;
     bool supportsFence;
@@ -110,6 +114,8 @@ namespace rfb {
     std::set<rdr::S32> encodings_;
     char verStr[13];
     int verStrPos;
+    rdr::U32 clipFlags;
+    rdr::U32 clipSizes[16];
   };
 }
 #endif

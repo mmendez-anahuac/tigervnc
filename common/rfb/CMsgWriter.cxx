@@ -80,6 +80,7 @@ void CMsgWriter::writeSetEncodings(int preferredEncoding, bool useCopyRect)
     encodings[nEncodings++] = pseudoEncodingDesktopName;
 
   encodings[nEncodings++] = pseudoEncodingLastRect;
+  encodings[nEncodings++] = pseudoEncodingExtendedClipboard;
   encodings[nEncodings++] = pseudoEncodingContinuousUpdates;
   encodings[nEncodings++] = pseudoEncodingFence;
 

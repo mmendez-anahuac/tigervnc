@@ -76,6 +76,13 @@ namespace rfb {
 
     virtual void cutText(const char* str, rdr::U32 len);
 
+    virtual void clipboardRequest(rdr::U32 flags);
+    virtual void clipboardPeek(rdr::U32 flags);
+    virtual void clipboardNotify(rdr::U32 flags);
+    virtual void clipboardProvide(rdr::U32 flags,
+                                  const size_t* lengths,
+                                  const rdr::U8* const* data);
+
     virtual void remoteClipboardRequest();
     virtual void localClipboardAvailable();
     virtual void localClipboardUnavailable();

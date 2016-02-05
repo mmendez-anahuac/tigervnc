@@ -56,6 +56,11 @@ void SMsgHandler::setEncodings(int nEncodings, const rdr::S32* encodings)
     supportsContinuousUpdates();
 }
 
+void SMsgHandler::clipboardCaps(rdr::U32 flags, const rdr::U32* lengths)
+{
+  cp.setClipboardCaps(flags, lengths);
+}
+
 void SMsgHandler::supportsLocalCursor()
 {
 }

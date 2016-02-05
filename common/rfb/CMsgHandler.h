@@ -42,9 +42,9 @@ namespace rfb {
 
     // The following methods are called as corresponding messages are read.  A
     // derived class should override these methods as desired.  Note that for
-    // the setDesktopSize(), setExtendedDesktopSize(), setPixelFormat() and
-    // setName() methods, a derived class should call on to CMsgHandler's
-    // methods to set the members of cp appropriately.
+    // the setDesktopSize(), setExtendedDesktopSize(), setPixelFormat(),
+    // setName() and clipboardCaps() methods, a derived class should call on
+    // to CMsgHandler's methods to set the members of cp appropriately.
 
     virtual void setDesktopSize(int w, int h);
     virtual void setExtendedDesktopSize(unsigned reason, unsigned result,
@@ -65,6 +65,8 @@ namespace rfb {
     virtual void setColourMapEntries(int firstColour, int nColours,
 				     rdr::U16* rgbs) = 0;
     virtual void bell() = 0;
+
+    virtual void clipboardCaps(rdr::U32 flags, const rdr::U32* lengths);
 
     ConnParams cp;
   };

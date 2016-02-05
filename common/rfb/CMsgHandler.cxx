@@ -82,3 +82,8 @@ void CMsgHandler::framebufferUpdateStart()
 void CMsgHandler::framebufferUpdateEnd()
 {
 }
+
+void CMsgHandler::clipboardCaps(rdr::U32 flags, const rdr::U32* lengths)
+{
+  cp.setClipboardCaps(flags, lengths);
+}

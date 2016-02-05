@@ -41,8 +41,8 @@ namespace rfb {
 
     // The following methods are called as corresponding messages are read.  A
     // derived class should override these methods as desired.  Note that for
-    // the setPixelFormat(), setEncodings() and setDesktopSize() methods, a
-    // derived class must call on to SMsgHandler's methods.
+    // the setPixelFormat(), setEncodings(), setDesktopSize() and
+    // clipboardCaps() methods, a derived class must call on to SMsgHandler's methods.
 
     virtual void clientInit(bool shared);
 
@@ -54,6 +54,8 @@ namespace rfb {
     virtual void fence(rdr::U32 flags, unsigned len, const char data[]) = 0;
     virtual void enableContinuousUpdates(bool enable,
                                          int x, int y, int w, int h) = 0;
+
+    virtual void clipboardCaps(rdr::U32 flags, const rdr::U32* lengths);
 
     // InputHandler interface
     // The InputHandler methods will be called for the corresponding messages.

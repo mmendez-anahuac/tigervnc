@@ -30,6 +30,14 @@ namespace rfb {
     virtual void fence(rdr::U32 flags, unsigned len, const char data[]) = 0;
 
     virtual void cutText(const char* str, rdr::U32 len) = 0;
+
+    virtual void clipboardCaps(rdr::U32 flags, const rdr::U32* lengths) = 0;
+    virtual void clipboardRequest(rdr::U32 flags) = 0;
+    virtual void clipboardPeek(rdr::U32 flags) = 0;
+    virtual void clipboardNotify(rdr::U32 flags) = 0;
+    virtual void clipboardProvide(rdr::U32 flags,
+                                  const size_t* lengths,
+                                  const rdr::U8* const* data) = 0;
   };
 
 }

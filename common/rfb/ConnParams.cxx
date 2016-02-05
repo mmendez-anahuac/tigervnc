@@ -21,6 +21,7 @@
 #include <rdr/InStream.h>
 #include <rdr/OutStream.h>
 #include <rfb/Exception.h>
+#include <rfb/clipboardTypes.h>
 #include <rfb/encodings.h>
 #include <rfb/ConnParams.h>
 #include <rfb/util.h>
@@ -33,12 +34,18 @@ ConnParams::ConnParams()
     supportsLocalCursor(false), supportsLocalXCursor(false),
     supportsDesktopResize(false), supportsExtendedDesktopSize(false),
     supportsDesktopRename(false), supportsLastRect(false),
+    supportsExtendedClipboard(false),
     supportsSetDesktopSize(false), supportsFence(false),
     supportsContinuousUpdates(false),
     compressLevel(2), qualityLevel(-1), fineQualityLevel(-1),
     subsampling(subsampleUndefined), name_(0), verStrPos(0)
 {
   setName("");
+
+  clipFlags = clipboardUTF8 | clipboardRTF | clipboardHTML |
+              clipboardRequest | clipboardNotify | clipboardProvide;
+  memset(clipSizes, 0, sizeof(clipSizes));
+  clipSizes[0] = 20 * 1024 * 1024;
 }
 
 ConnParams::~ConnParams()
@@ -143,6 +150,9 @@ void ConnParams::setEncodings(int nEncodings, const rdr::S32* encodings)
     case pseudoEncodingLastRect:
       supportsLastRect = true;
       break;
+    case pseudoEncodingExtendedClipboard:
+      supportsExtendedClipboard = true;
+      break;
     case pseudoEncodingFence:
       supportsFence = true;
       break;
@@ -183,5 +193,21 @@ void ConnParams::setEncodings(int nEncodings, const rdr::S32* encodings)
 
     if (encodings[i] > 0)
       encodings_.insert(encodings[i]);
+  }
+}
+
+void ConnParams::setClipboardCaps(rdr::U32 flags, const rdr::U32* lengths)
+{
+  int i, num;
+
+  supportsExtendedClipboard = true;
+
+  clipFlags = flags;
+
+  num = 0;
+  for (i = 0;i < 16;i++) {
+    if (!(flags & (1 << i)))
+      continue;
+    clipSizes[i] = lengths[num++];
   }
 }
