@@ -76,8 +76,13 @@ namespace rfb {
       return resultProhibited;
     }
 
+    // clientCutText() is called in response to a cut text message
+    // being received from one of the connected clients.
+    virtual void clientCutText(const char* str, int len) {}
+
+
     // InputHandler interface
-    // pointerEvent(), keyEvent() and clientCutText() are called in response to
+    // pointerEvent() and keyEvent() are called in response to
     // the relevant RFB protocol messages from clients.
     // See InputHandler for method signatures.
   protected:

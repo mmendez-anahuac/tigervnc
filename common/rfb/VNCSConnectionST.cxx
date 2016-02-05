@@ -270,7 +270,7 @@ void VNCSConnectionST::serverCutTextOrClose(const char *str, int len)
     if (!(accessRights & AccessCutText)) return;
     if (!rfb::Server::sendCutText) return;
     if (state() == RFBSTATE_NORMAL)
-      writer()->writeServerCutText(str, len);
+      writer()->writeCutText(str, len);
   } catch(rdr::Exception& e) {
     close(e.str());
   }
@@ -555,7 +555,7 @@ void VNCSConnectionST::keyEvent(rdr::U32 key, bool down) {
   server->desktop->keyEvent(key, down);
 }
 
-void VNCSConnectionST::clientCutText(const char* str, int len)
+void VNCSConnectionST::cutText(const char* str, rdr::U32 len)
 {
   if (!(accessRights & AccessCutText)) return;
   if (!rfb::Server::acceptCutText) return;

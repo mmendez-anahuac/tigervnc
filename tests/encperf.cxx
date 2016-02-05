@@ -96,7 +96,7 @@ public:
   virtual void dataRect(const rfb::Rect&, int);
   virtual void setColourMapEntries(int, int, rdr::U16*);
   virtual void bell();
-  virtual void serverCutText(const char*, rdr::U32);
+  virtual void cutText(const char*, rdr::U32);
 
 public:
   double decodeTime;
@@ -128,6 +128,8 @@ public:
 
   virtual void setDesktopSize(int fb_width, int fb_height,
                               const rfb::ScreenSet& layout);
+
+  virtual void cutText(const char*, rdr::U32);
 
 protected:
   DummyOutStream *out;
@@ -256,7 +258,7 @@ void CConn::bell()
 {
 }
 
-void CConn::serverCutText(const char*, rdr::U32)
+void CConn::cutText(const char*, rdr::U32)
 {
 }
 
@@ -318,6 +320,10 @@ void SConn::setAccessRights(AccessRights ar)
 
 void SConn::setDesktopSize(int fb_width, int fb_height,
                            const rfb::ScreenSet& layout)
+{
+}
+
+void SConn::cutText(const char*, rdr::U32)
 {
 }
 

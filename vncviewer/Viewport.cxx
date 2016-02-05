@@ -294,7 +294,7 @@ int Viewport::handle(int event)
     vlog.debug("Sending clipboard data (%d bytes)", (int)strlen(buffer));
 
     try {
-      cc->writer()->writeClientCutText(buffer, strlen(buffer));
+      cc->writer()->writeCutText(buffer, strlen(buffer));
     } catch (rdr::Exception& e) {
       vlog.error("%s", e.str());
       exit_vncviewer(e.str());

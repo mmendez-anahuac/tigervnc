@@ -27,6 +27,7 @@
 #include <rdr/types.h>
 #include <rfb/Pixel.h>
 #include <rfb/ConnParams.h>
+#include <rfb/MsgHandler.h>
 #include <rfb/Rect.h>
 #include <rfb/ScreenSet.h>
 
@@ -34,7 +35,7 @@ namespace rdr { class InStream; }
 
 namespace rfb {
 
-  class CMsgHandler {
+  class CMsgHandler : public MsgHandler {
   public:
     CMsgHandler();
     virtual ~CMsgHandler();
@@ -64,7 +65,6 @@ namespace rfb {
     virtual void setColourMapEntries(int firstColour, int nColours,
 				     rdr::U16* rgbs) = 0;
     virtual void bell() = 0;
-    virtual void serverCutText(const char* str, rdr::U32 len) = 0;
 
     ConnParams cp;
   };

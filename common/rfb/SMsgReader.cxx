@@ -30,10 +30,8 @@ using namespace rfb;
 
 static LogWriter vlog("SMsgReader");
 
-static IntParameter maxCutText("MaxCutText", "Maximum permitted length of an incoming clipboard update", 256*1024);
-
 SMsgReader::SMsgReader(SMsgHandler* handler_, rdr::InStream* is_)
-  : handler(handler_), is(is_)
+  : MsgReader(handler_, is_), handler(handler_)
 {
 }
 
@@ -76,7 +74,7 @@ void SMsgReader::readMsg()
     readPointerEvent();
     break;
   case msgTypeClientCutText:
-    readClientCutText();
+    readCutText();
     break;
   default:
     fprintf(stderr, "unknown message type %d\n", msgType);
@@ -157,28 +155,6 @@ void SMsgReader::readEnableContinuousUpdates()
   handler->enableContinuousUpdates(enable, x, y, w, h);
 }
 
-void SMsgReader::readFence()
-{
-  rdr::U32 flags;
-  rdr::U8 len;
-  char data[64];
-
-  is->skip(3);
-
-  flags = is->readU32();
-
-  len = is->readU8();
-  if (len > sizeof(data)) {
-    fprintf(stderr, "Ignoring fence with too large payload\n");
-    is->skip(len);
-    return;
-  }
-
-  is->readBytes(data, len);
-  
-  handler->fence(flags, len, data);
-}
-
 void SMsgReader::readKeyEvent()
 {
   bool down = is->readU8();
@@ -194,20 +170,3 @@ void SMsgReader::readPointerEvent()
   int y = is->readU16();
   handler->pointerEvent(Point(x, y), mask);
 }
-
-
-void SMsgReader::readClientCutText()
-{
-  is->skip(3);
-  int len = is->readU32();
-  if (len > maxCutText) {
-    is->skip(len);
-    vlog.error("Cut text too long (%d bytes) - ignoring", len);
-    return;
-  }
-  CharArray ca(len+1);
-  ca.buf[len] = 0;
-  is->readBytes(ca.buf, len);
-  handler->clientCutText(ca.buf, len);
-}
-

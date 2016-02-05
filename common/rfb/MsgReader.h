@@ -1,5 +1,5 @@
 /* Copyright (C) 2002-2005 RealVNC Ltd.  All Rights Reserved.
- * Copyright 2009-2014 Pierre Ossman for Cendio AB
+ * Copyright 2009-2016 Pierre Ossman for Cendio AB
  * 
  * This is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,43 +16,29 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307,
  * USA.
  */
-//
-// SMsgReader - class for reading RFB messages on the server side
-// (i.e. messages from client to server).
-//
+#ifndef __RFB_MSGREADER_H__
+#define __RFB_MSGREADER_H__
 
-#ifndef __RFB_SMSGREADER_H__
-#define __RFB_SMSGREADER_H__
-
-#include <rfb/MsgReader.h>
+#include <rdr/types.h>
 
 namespace rdr { class InStream; }
 
 namespace rfb {
-  class SMsgHandler;
+  class MsgHandler;
 
-  class SMsgReader : public MsgReader {
+  class MsgReader {
+  protected:
+    MsgReader(MsgHandler* handler, rdr::InStream* is);
+    virtual ~MsgReader();
+
   public:
-    SMsgReader(SMsgHandler* handler, rdr::InStream* is);
-    virtual ~SMsgReader();
-
-    void readClientInit();
-
-    // readMsg() reads a message, calling the handler as appropriate.
-    void readMsg();
+    void readCutText();
+    void readFence();
 
   protected:
-    void readSetPixelFormat();
-    void readSetEncodings();
-    void readSetDesktopSize();
-
-    void readFramebufferUpdateRequest();
-    void readEnableContinuousUpdates();
-
-    void readKeyEvent();
-    void readPointerEvent();
-
-    SMsgHandler* handler;
+    MsgHandler* handler;
+    rdr::InStream* is;
   };
+
 }
 #endif

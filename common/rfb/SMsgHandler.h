@@ -27,13 +27,14 @@
 #include <rfb/PixelFormat.h>
 #include <rfb/ConnParams.h>
 #include <rfb/InputHandler.h>
+#include <rfb/MsgHandler.h>
 #include <rfb/ScreenSet.h>
 
 namespace rdr { class InStream; }
 
 namespace rfb {
 
-  class SMsgHandler : public InputHandler {
+  class SMsgHandler : public MsgHandler, public InputHandler {
   public:
     SMsgHandler();
     virtual ~SMsgHandler();

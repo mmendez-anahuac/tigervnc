@@ -25,16 +25,14 @@
 
 #include <rdr/types.h>
 #include <rfb/encodings.h>
+#include <rfb/MsgWriter.h>
 #include <rfb/ScreenSet.h>
-
-namespace rdr { class OutStream; }
 
 namespace rfb {
 
-  class ConnParams;
   class ScreenSet;
 
-  class SMsgWriter {
+  class SMsgWriter : public MsgWriter {
   public:
     SMsgWriter(ConnParams* cp, rdr::OutStream* os);
     virtual ~SMsgWriter();
@@ -52,12 +50,8 @@ namespace rfb {
                                   const rdr::U16 green[],
                                   const rdr::U16 blue[]);
 
-    // writeBell() and writeServerCutText() do the obvious thing.
+    // writeBell() does the obvious thing.
     void writeBell();
-    void writeServerCutText(const char* str, int len);
-
-    // writeFence() sends a new fence request or response to the client.
-    void writeFence(rdr::U32 flags, unsigned len, const char data[]);
 
     // writeEndOfContinuousUpdates() indicates that we have left continuous
     // updates mode.
@@ -110,9 +104,6 @@ namespace rfb {
     void endRect();
 
   protected:
-    void startMsg(int type);
-    void endMsg();
-
     void writePseudoRects();
     void writeNoDataRects();
 
@@ -128,9 +119,6 @@ namespace rfb {
                              int hotspotX, int hotspotY,
                              const rdr::U8 pix0[], const rdr::U8 pix1[],
                              const void* data, const void* mask);
-
-    ConnParams* cp;
-    rdr::OutStream* os;
 
     int nRectsInUpdate;
     int nRectsInHeader;

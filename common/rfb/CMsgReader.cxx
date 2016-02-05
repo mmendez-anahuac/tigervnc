@@ -27,8 +27,8 @@
 using namespace rfb;
 
 CMsgReader::CMsgReader(CMsgHandler* handler_, rdr::InStream* is_)
-  : imageBufIdealSize(0), handler(handler_), is(is_),
-    nUpdateRectsLeft(0)
+  : MsgReader(handler_, is_),
+    handler(handler_), nUpdateRectsLeft(0)
 {
 }
 
@@ -62,7 +62,7 @@ void CMsgReader::readMsg()
       readBell();
       break;
     case msgTypeServerCutText:
-      readServerCutText();
+      readCutText();
       break;
     case msgTypeFramebufferUpdate:
       readFramebufferUpdate();
@@ -125,43 +125,6 @@ void CMsgReader::readSetColourMapEntries()
 void CMsgReader::readBell()
 {
   handler->bell();
-}
-
-void CMsgReader::readServerCutText()
-{
-  is->skip(3);
-  rdr::U32 len = is->readU32();
-  if (len > 256*1024) {
-    is->skip(len);
-    fprintf(stderr,"cut text too long (%d bytes) - ignoring\n",len);
-    return;
-  }
-  CharArray ca(len+1);
-  ca.buf[len] = 0;
-  is->readBytes(ca.buf, len);
-  handler->serverCutText(ca.buf, len);
-}
-
-void CMsgReader::readFence()
-{
-  rdr::U32 flags;
-  rdr::U8 len;
-  char data[64];
-
-  is->skip(3);
-
-  flags = is->readU32();
-
-  len = is->readU8();
-  if (len > sizeof(data)) {
-    fprintf(stderr, "Ignoring fence with too large payload\n");
-    is->skip(len);
-    return;
-  }
-
-  is->readBytes(data, len);
-
-  handler->fence(flags, len, data);
 }
 
 void CMsgReader::readEndOfContinuousUpdates()

@@ -153,6 +153,11 @@ combined with
 Accept clipboard changes from the server. Default is on.
 .
 .TP
+.B \-MaxCutText \fIbytes\fP
+The maximum size of a clipboard update that will be accepted from a server.
+Default is \fB262144\fP.
+.
+.TP
 .B \-SendClipboard
 Send clipboard changes to the server. Default is on.
 .

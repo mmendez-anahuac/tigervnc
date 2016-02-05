@@ -19,7 +19,6 @@
 #include <stdio.h>
 #include <rdr/OutStream.h>
 #include <rfb/msgTypes.h>
-#include <rfb/fenceTypes.h>
 #include <rfb/encodings.h>
 #include <rfb/Exception.h>
 #include <rfb/PixelFormat.h>
@@ -31,7 +30,7 @@
 using namespace rfb;
 
 CMsgWriter::CMsgWriter(ConnParams* cp_, rdr::OutStream* os_)
-  : cp(cp_), os(os_)
+  : MsgWriter(true, cp_, os_)
 {
 }
 
@@ -190,26 +189,6 @@ void CMsgWriter::writeEnableContinuousUpdates(bool enable,
   endMsg();
 }
 
-void CMsgWriter::writeFence(rdr::U32 flags, unsigned len, const char data[])
-{
-  if (!cp->supportsFence)
-    throw Exception("Server does not support fences");
-  if (len > 64)
-    throw Exception("Too large fence payload");
-  if ((flags & ~fenceFlagsSupported) != 0)
-    throw Exception("Unknown fence flags");
-
-  startMsg(msgTypeClientFence);
-  os->pad(3);
-
-  os->writeU32(flags);
-
-  os->writeU8(len);
-  os->writeBytes(data, len);
-
-  endMsg();
-}
-
 void CMsgWriter::writeKeyEvent(rdr::U32 key, bool down)
 {
   startMsg(msgTypeKeyEvent);
@@ -233,24 +212,4 @@ void CMsgWriter::writePointerEvent(const Point& pos, int buttonMask)
   os->writeU16(p.x);
   os->writeU16(p.y);
   endMsg();
-}
-
-
-void CMsgWriter::writeClientCutText(const char* str, rdr::U32 len)
-{
-  startMsg(msgTypeClientCutText);
-  os->pad(3);
-  os->writeU32(len);
-  os->writeBytes(str, len);
-  endMsg();
-}
-
-void CMsgWriter::startMsg(int type)
-{
-  os->writeU8(type);
-}
-
-void CMsgWriter::endMsg()
-{
-  os->flush();
 }

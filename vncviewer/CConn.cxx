@@ -416,7 +416,7 @@ void CConn::bell()
   fl_beep();
 }
 
-void CConn::serverCutText(const char* str, rdr::U32 len)
+void CConn::cutText(const char* str, rdr::U32 len)
 {
   char *buffer;
 

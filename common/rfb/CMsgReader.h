@@ -28,6 +28,7 @@
 
 #include <rfb/Rect.h>
 #include <rfb/encodings.h>
+#include <rfb/MsgReader.h>
 
 namespace rdr { class InStream; }
 
@@ -35,7 +36,7 @@ namespace rfb {
   class CMsgHandler;
   struct Rect;
 
-  class CMsgReader {
+  class CMsgReader : public MsgReader {
   public:
     CMsgReader(CMsgHandler* handler, rdr::InStream* is);
     virtual ~CMsgReader();
@@ -45,15 +46,9 @@ namespace rfb {
     // readMsg() reads a message, calling the handler as appropriate.
     void readMsg();
 
-    rdr::InStream* getInStream() { return is; }
-
-    int imageBufIdealSize;
-
   protected:
     void readSetColourMapEntries();
     void readBell();
-    void readServerCutText();
-    void readFence();
     void readEndOfContinuousUpdates();
 
     void readFramebufferUpdate();
@@ -65,7 +60,6 @@ namespace rfb {
     void readExtendedDesktopSize(int x, int y, int w, int h);
 
     CMsgHandler* handler;
-    rdr::InStream* is;
     int nUpdateRectsLeft;
   };
 }

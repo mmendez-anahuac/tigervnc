@@ -26,10 +26,14 @@ set(RFB_SOURCES
   JpegCompressor.cxx
   JpegDecompressor.cxx
   KeyRemapper.cxx
+  MsgReader.cxx
+  MsgWriter.cxx
   LogWriter.cxx
   Logger.cxx
   Logger_file.cxx
   Logger_stdio.cxx
+  MsgReader.cxx
+  MsgWriter.cxx
   Password.cxx
   PixelBuffer.cxx
   PixelFormat.cxx

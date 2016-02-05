@@ -33,7 +33,7 @@ using namespace rfb;
 static LogWriter vlog("SMsgWriter");
 
 SMsgWriter::SMsgWriter(ConnParams* cp_, rdr::OutStream* os_)
-  : cp(cp_), os(os_),
+  : MsgWriter(false, cp_, os_),
     nRectsInUpdate(0), nRectsInHeader(0),
     needSetDesktopSize(false), needExtendedDesktopSize(false),
     needSetDesktopName(false), needSetCursor(false), needSetXCursor(false)
@@ -73,35 +73,6 @@ void SMsgWriter::writeSetColourMapEntries(int firstColour, int nColours,
 void SMsgWriter::writeBell()
 {
   startMsg(msgTypeBell);
-  endMsg();
-}
-
-void SMsgWriter::writeServerCutText(const char* str, int len)
-{
-  startMsg(msgTypeServerCutText);
-  os->pad(3);
-  os->writeU32(len);
-  os->writeBytes(str, len);
-  endMsg();
-}
-
-void SMsgWriter::writeFence(rdr::U32 flags, unsigned len, const char data[])
-{
-  if (!cp->supportsFence)
-    throw Exception("Client does not support fences");
-  if (len > 64)
-    throw Exception("Too large fence payload");
-  if ((flags & ~fenceFlagsSupported) != 0)
-    throw Exception("Unknown fence flags");
-
-  startMsg(msgTypeServerFence);
-  os->pad(3);
-
-  os->writeU32(flags);
-
-  os->writeU8(len);
-  os->writeBytes(data, len);
-
   endMsg();
 }
 
@@ -285,16 +256,6 @@ void SMsgWriter::startRect(const Rect& r, int encoding)
 
 void SMsgWriter::endRect()
 {
-}
-
-void SMsgWriter::startMsg(int type)
-{
-  os->writeU8(type);
-}
-
-void SMsgWriter::endMsg()
-{
-  os->flush();
 }
 
 void SMsgWriter::writePseudoRects()

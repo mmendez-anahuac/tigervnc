@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2005 RealVNC Ltd.  All Rights Reserved.
+/* Copyright 2016 Pierre Ossman for Cendio AB
  * 
  * This is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,24 +15,21 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307,
  * USA.
  */
-//
-// InputHandler - abstract interface for accepting keyboard &
-// pointer input
-//
-
-#ifndef __RFB_INPUTHANDLER_H__
-#define __RFB_INPUTHANDLER_H__
-
-#include <rdr/types.h>
-#include <rfb/Rect.h>
+#ifndef __RFB_MSGHANDLER_H__
+#define __RFB_MSGHANDLER_H__
 
 namespace rfb {
 
-  class InputHandler {
+  class MsgHandler {
   public:
-    virtual ~InputHandler() {}
-    virtual void keyEvent(rdr::U32 key, bool down) {}
-    virtual void pointerEvent(const Point& pos, int buttonMask) {}
+    virtual ~MsgHandler() {}
+
+    // The following methods are called as corresponding messages are
+    // read. A derived class should override these methods as desired.
+
+    virtual void fence(rdr::U32 flags, unsigned len, const char data[]) = 0;
+
+    virtual void cutText(const char* str, rdr::U32 len) = 0;
   };
 
 }

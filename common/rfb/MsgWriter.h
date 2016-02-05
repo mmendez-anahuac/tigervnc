@@ -1,5 +1,5 @@
 /* Copyright (C) 2002-2005 RealVNC Ltd.  All Rights Reserved.
- * Copyright 2009-2014 Pierre Ossman for Cendio AB
+ * Copyright 2016 Pierre Ossman for Cendio AB
  * 
  * This is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,43 +16,36 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307,
  * USA.
  */
-//
-// SMsgReader - class for reading RFB messages on the server side
-// (i.e. messages from client to server).
-//
+#ifndef __RFB_MSGWRITER_H__
+#define __RFB_MSGWRITER_H__
 
-#ifndef __RFB_SMSGREADER_H__
-#define __RFB_SMSGREADER_H__
+#include <rdr/types.h>
 
-#include <rfb/MsgReader.h>
-
-namespace rdr { class InStream; }
+namespace rdr { class OutStream; }
 
 namespace rfb {
-  class SMsgHandler;
+  class ConnParams;
 
-  class SMsgReader : public MsgReader {
+  class MsgWriter {
+  protected:
+    MsgWriter(bool client, ConnParams* cp, rdr::OutStream* os);
+    virtual ~MsgWriter();
+
   public:
-    SMsgReader(SMsgHandler* handler, rdr::InStream* is);
-    virtual ~SMsgReader();
+    void writeFence(rdr::U32 flags, unsigned len, const char data[]);
 
-    void readClientInit();
-
-    // readMsg() reads a message, calling the handler as appropriate.
-    void readMsg();
+    void writeCutText(const char* str, rdr::U32 len);
 
   protected:
-    void readSetPixelFormat();
-    void readSetEncodings();
-    void readSetDesktopSize();
+    void startMsg(int type);
+    void endMsg();
 
-    void readFramebufferUpdateRequest();
-    void readEnableContinuousUpdates();
+    ConnParams* cp;
+    rdr::OutStream* os;
 
-    void readKeyEvent();
-    void readPointerEvent();
-
-    SMsgHandler* handler;
+  private:
+    bool client;
   };
+
 }
 #endif

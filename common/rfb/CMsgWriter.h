@@ -24,18 +24,16 @@
 #define __RFB_CMSGWRITER_H__
 
 #include <rdr/types.h>
-
-namespace rdr { class OutStream; }
+#include <rfb/MsgWriter.h>
 
 namespace rfb {
 
   class PixelFormat;
-  class ConnParams;
   class Point;
   class ScreenSet;
   struct Rect;
 
-  class CMsgWriter {
+  class CMsgWriter : public MsgWriter {
   public:
     CMsgWriter(ConnParams* cp, rdr::OutStream* os);
     virtual ~CMsgWriter();
@@ -50,18 +48,8 @@ namespace rfb {
     void writeFramebufferUpdateRequest(const Rect& r,bool incremental);
     void writeEnableContinuousUpdates(bool enable, int x, int y, int w, int h);
 
-    void writeFence(rdr::U32 flags, unsigned len, const char data[]);
-
     void writeKeyEvent(rdr::U32 key, bool down);
     void writePointerEvent(const Point& pos, int buttonMask);
-    void writeClientCutText(const char* str, rdr::U32 len);
-
-  protected:
-    void startMsg(int type);
-    void endMsg();
-
-    ConnParams* cp;
-    rdr::OutStream* os;
   };
 }
 #endif
