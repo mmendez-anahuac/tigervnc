@@ -416,25 +416,6 @@ void CConn::bell()
   fl_beep();
 }
 
-void CConn::cutText(const char* str, rdr::U32 len)
-{
-  char *buffer;
-
-  if (!acceptClipboard)
-    return;
-
-  buffer = latin1ToUTF8(str, len);
-
-  vlog.debug("Got clipboard data (%d bytes)", (int)strlen(buffer));
-
-  // RFB doesn't have separate selection and clipboard concepts, so we
-  // dump the data into both variants.
-  Fl::copy(buffer, strlen(buffer), 0);
-  Fl::copy(buffer, strlen(buffer), 1);
-
-  strFree(buffer);
-}
-
 void CConn::dataRect(const Rect& r, int encoding)
 {
   sock->inStream().startTiming();
@@ -485,6 +466,26 @@ void CConn::fence(rdr::U32 flags, unsigned len, const char data[])
 
     cp.setPF(pf);
   }
+}
+
+void CConn::remoteClipboardAvailable()
+{
+  desktop->remoteClipboardAvailable();
+}
+
+void CConn::remoteClipboardUnavailable()
+{
+  desktop->remoteClipboardUnavailable();
+}
+
+void CConn::remoteClipboardData(const char* data)
+{
+  desktop->remoteClipboardData(data);
+}
+
+void CConn::localClipboardRequest()
+{
+  desktop->localClipboardRequest();
 }
 
 

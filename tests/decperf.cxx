@@ -49,12 +49,15 @@ public:
 
   virtual void setDesktopSize(int w, int h);
   virtual void setPixelFormat(const rfb::PixelFormat& pf);
-  virtual void setCursor(int, int, const rfb::Point&, void*, void*);
+  virtual void setCursor(int, int, const rfb::Point&, void*, void*) {}
   virtual void framebufferUpdateStart();
   virtual void framebufferUpdateEnd();
-  virtual void setColourMapEntries(int, int, rdr::U16*);
-  virtual void bell();
-  virtual void cutText(const char*, rdr::U32);
+  virtual void setColourMapEntries(int, int, rdr::U16*) {}
+  virtual void bell() {}
+  virtual void remoteClipboardAvailable() {}
+  virtual void remoteClipboardUnavailable() {}
+  virtual void remoteClipboardData(const char* data) {}
+  virtual void localClipboardRequest() {}
 
 public:
   double cpuTime;
@@ -94,10 +97,6 @@ void CConn::setPixelFormat(const rfb::PixelFormat& pf)
   CConnection::setPixelFormat(filePF);
 }
 
-void CConn::setCursor(int, int, const rfb::Point&, void*, void*)
-{
-}
-
 void CConn::framebufferUpdateStart()
 {
   CConnection::framebufferUpdateStart();
@@ -112,18 +111,6 @@ void CConn::framebufferUpdateEnd()
   endCpuCounter();
 
   cpuTime += getCpuCounter();
-}
-
-void CConn::setColourMapEntries(int, int, rdr::U16*)
-{
-}
-
-void CConn::bell()
-{
-}
-
-void CConn::cutText(const char*, rdr::U32)
-{
 }
 
 struct stats

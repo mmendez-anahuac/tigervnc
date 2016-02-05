@@ -262,12 +262,39 @@ void vncUpdateDesktopName(void)
   }
 }
 
-void vncServerCutText(const char *text, size_t len)
+void vncRemoteClipboardRequest(void)
 {
   for (int scr = 0; scr < vncGetScreenCount(); scr++) {
     if (desktop[scr] == NULL)
       continue;
-    desktop[scr]->serverCutText(text, len);
+    desktop[scr]->remoteClipboardRequest();
+  }
+}
+
+void vncLocalClipboardAvailable(void)
+{
+  for (int scr = 0; scr < vncGetScreenCount(); scr++) {
+    if (desktop[scr] == NULL)
+      continue;
+    desktop[scr]->localClipboardAvailable();
+  }
+}
+
+void vncLocalClipboardUnavailable(void)
+{
+  for (int scr = 0; scr < vncGetScreenCount(); scr++) {
+    if (desktop[scr] == NULL)
+      continue;
+    desktop[scr]->localClipboardUnavailable();
+  }
+}
+
+void vncLocalClipboardData(const char* data)
+{
+  for (int scr = 0; scr < vncGetScreenCount(); scr++) {
+    if (desktop[scr] == NULL)
+      continue;
+    desktop[scr]->localClipboardData(data);
   }
 }
 

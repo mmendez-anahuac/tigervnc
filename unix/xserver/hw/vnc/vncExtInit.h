@@ -61,7 +61,10 @@ int vncGetSendPrimary(void);
 
 void vncUpdateDesktopName(void);
 
-void vncServerCutText(const char *text, size_t len);
+void vncRemoteClipboardRequest(void);
+void vncLocalClipboardAvailable(void);
+void vncLocalClipboardUnavailable(void);
+void vncLocalClipboardData(const char* data);
 
 int vncConnectClient(const char *addr);
 

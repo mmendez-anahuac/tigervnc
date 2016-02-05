@@ -90,13 +90,16 @@ public:
                 unsigned long long& rawEquivalent);
 
   virtual void setDesktopSize(int w, int h);
-  virtual void setCursor(int, int, const rfb::Point&, void*, void*);
+  virtual void setCursor(int, int, const rfb::Point&, void*, void*) {}
   virtual void framebufferUpdateStart();
   virtual void framebufferUpdateEnd();
   virtual void dataRect(const rfb::Rect&, int);
-  virtual void setColourMapEntries(int, int, rdr::U16*);
-  virtual void bell();
-  virtual void cutText(const char*, rdr::U32);
+  virtual void setColourMapEntries(int, int, rdr::U16*) {}
+  virtual void bell() {}
+  virtual void remoteClipboardAvailable() {}
+  virtual void remoteClipboardUnavailable() {}
+  virtual void remoteClipboardData(const char* data) {}
+  virtual void localClipboardRequest() {}
 
 public:
   double decodeTime;
@@ -124,12 +127,15 @@ public:
 
   void getStats(double&, unsigned long long&, unsigned long long&);
 
-  virtual void setAccessRights(AccessRights ar);
+  virtual void setAccessRights(AccessRights ar) {}
 
   virtual void setDesktopSize(int fb_width, int fb_height,
-                              const rfb::ScreenSet& layout);
+                              const rfb::ScreenSet& layout) {}
 
-  virtual void cutText(const char*, rdr::U32);
+  virtual void remoteClipboardAvailable() {}
+  virtual void remoteClipboardUnavailable() {}
+  virtual void remoteClipboardData(const char* data) {}
+  virtual void localClipboardRequest() {}
 
 protected:
   DummyOutStream *out;
@@ -209,10 +215,6 @@ void CConn::setDesktopSize(int w, int h)
   setFramebuffer(pb);
 }
 
-void CConn::setCursor(int, int, const rfb::Point&, void*, void*)
-{
-}
-
 void CConn::framebufferUpdateStart()
 {
   CConnection::framebufferUpdateStart();
@@ -248,18 +250,6 @@ void CConn::dataRect(const rfb::Rect &r, int encoding)
 
   if (encoding != rfb::encodingCopyRect) // FIXME
     updates.add_changed(rfb::Region(r));
-}
-
-void CConn::setColourMapEntries(int, int, rdr::U16*)
-{
-}
-
-void CConn::bell()
-{
-}
-
-void CConn::cutText(const char*, rdr::U32)
-{
 }
 
 Manager::Manager(class rfb::SConnection *conn) :
@@ -312,19 +302,6 @@ void SConn::getStats(double& ratio, unsigned long long& bytes,
                      unsigned long long& rawEquivalent)
 {
   manager->getStats(ratio, bytes, rawEquivalent);
-}
-
-void SConn::setAccessRights(AccessRights ar)
-{
-}
-
-void SConn::setDesktopSize(int fb_width, int fb_height,
-                           const rfb::ScreenSet& layout)
-{
-}
-
-void SConn::cutText(const char*, rdr::U32)
-{
 }
 
 struct stats

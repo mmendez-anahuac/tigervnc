@@ -57,6 +57,12 @@ public:
   void setCursor(int width, int height, const rfb::Point& hotspot,
                  void* data, void* mask);
 
+  // Clipboard events
+  void remoteClipboardAvailable();
+  void remoteClipboardUnavailable();
+  void remoteClipboardData(const char* data);
+  void localClipboardRequest();
+
   // Fl_Window callback methods
   void resize(int x, int y, int w, int h);
 

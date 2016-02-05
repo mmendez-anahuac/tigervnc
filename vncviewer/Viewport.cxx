@@ -252,6 +252,34 @@ void Viewport::setCursor(int width, int height, const Point& hotspot,
     window()->cursor(cursor, cursorHotspot.x, cursorHotspot.y);
 }
 
+void Viewport::remoteClipboardAvailable()
+{
+  vlog.debug("Got clipboard notification, requesting data");
+  cc->remoteClipboardRequest();
+}
+
+void Viewport::remoteClipboardUnavailable()
+{
+}
+
+void Viewport::remoteClipboardData(const char* data)
+{
+  size_t len;
+
+  len = strlen(data);
+
+  vlog.debug("Got clipboard data (%d bytes)", (int)len);
+
+  // RFB doesn't have separate selection and clipboard concepts, so we
+  // dump the data into both variants.
+  Fl::copy(data, len, 0);
+  Fl::copy(data, len, 1);
+}
+
+void Viewport::localClipboardRequest()
+{
+  Fl::paste(*this, clipboardSource);
+}
 
 void Viewport::draw()
 {
@@ -283,24 +311,19 @@ void Viewport::resize(int x, int y, int w, int h)
 
 int Viewport::handle(int event)
 {
-  char *buffer;
   int buttonMask, wheelMask;
   DownMap::const_iterator iter;
 
   switch (event) {
   case FL_PASTE:
-    buffer = utf8ToLatin1(Fl::event_text(), Fl::event_length());
-
-    vlog.debug("Sending clipboard data (%d bytes)", (int)strlen(buffer));
-
+    vlog.debug("Sending clipboard data (%d bytes)",
+               (int)strlen(Fl::event_text()));
     try {
-      cc->writer()->writeCutText(buffer, strlen(buffer));
+      cc->localClipboardData(Fl::event_text());
     } catch (rdr::Exception& e) {
       vlog.error("%s", e.str());
       exit_vncviewer(e.str());
     }
-
-    strFree(buffer);
 
     return 1;
 
@@ -402,7 +425,14 @@ void Viewport::handleClipboardChange(int source, void *data)
     return;
 #endif
 
-  Fl::paste(*self, source);
+  self->clipboardSource = source;
+
+  try {
+    self->cc->localClipboardAvailable();
+  } catch (rdr::Exception& e) {
+    vlog.error("%s", e.str());
+    exit_vncviewer(e.str());
+  }
 }
 
 

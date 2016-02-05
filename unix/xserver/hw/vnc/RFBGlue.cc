@@ -203,6 +203,15 @@ int vncIsTCPPortUsed(int port)
   return 0;
 }
 
+char* vncConvertLF(const char* src, size_t bytes)
+{
+  try {
+    return convertLF(src, bytes);
+  } catch (...) {
+    return NULL;
+  }
+}
+
 char* vncLatin1ToUTF8(const char* src, size_t bytes)
 {
   try {

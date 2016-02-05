@@ -283,13 +283,6 @@ void SDisplay::keyEvent(rdr::U32 key, bool down) {
     kbd->keyEvent(key, down);
 }
 
-void SDisplay::clientCutText(const char* text, int len) {
-  CharArray clip_sz(len+1);
-  memcpy(clip_sz.buf, text, len);
-  clip_sz.buf[len] = 0;
-  clipboard->setClipText(clip_sz.buf);
-}
-
 
 Point SDisplay::getFbSize() {
   bool startAndStop = !core;
@@ -307,10 +300,34 @@ Point SDisplay::getFbSize() {
 
 
 void
-SDisplay::notifyClipboardChanged(const char* text, int len) {
+SDisplay::notifyClipboardChanged(bool available) {
   vlog.debug("clipboard text changed");
-  if (server)
-    server->serverCutText(text, len);
+  if (server) {
+    if (available)
+      server->localClipboardAvailable();
+    else
+      server->localClipboardUnavailable();
+  }
+}
+
+void
+SDisplay::remoteClipboardAvailable() {
+  server->remoteClipboardRequest();
+}
+
+void
+SDisplay::remoteClipboardUnavailable() {
+}
+
+void
+SDisplay::remoteClipboardData(const char* data) {
+  clipboard->setClipText(data);
+}
+
+void
+SDisplay::localClipboardRequest() {
+  CharArray data(clipboard->getClipText());
+  server->localClipboardData(data.buf);
 }
 
 

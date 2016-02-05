@@ -260,6 +260,27 @@ void DesktopWindow::setCursor(int width, int height, const Point& hotspot,
 }
 
 
+void DesktopWindow::remoteClipboardAvailable()
+{
+  viewport->remoteClipboardAvailable();
+}
+
+void DesktopWindow::remoteClipboardUnavailable()
+{
+  viewport->remoteClipboardUnavailable();
+}
+
+void DesktopWindow::remoteClipboardData(const char* data)
+{
+  viewport->remoteClipboardData(data);
+}
+
+void DesktopWindow::localClipboardRequest()
+{
+  viewport->localClipboardRequest();
+}
+
+
 void DesktopWindow::resize(int x, int y, int w, int h)
 {
   bool resizing;

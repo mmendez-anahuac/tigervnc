@@ -262,8 +262,11 @@ public:
 #endif
   }
 
-  virtual void clientCutText(const char* str, int len) {
-  }
+  // FIXME: Clipboard support
+  virtual void remoteClipboardAvailable() {}
+  virtual void remoteClipboardUnavailable() {}
+  virtual void remoteClipboardData(const char* data) {}
+  virtual void localClipboardRequest() {}
 
   virtual Point getFbSize() {
     return Point(pb->width(), pb->height());

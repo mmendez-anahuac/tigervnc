@@ -1,4 +1,5 @@
 /* Copyright (C) 2002-2005 RealVNC Ltd.  All Rights Reserved.
+ * Copyright 2009-2016 Pierre Ossman for Cendio AB
  * 
  * This is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,6 +38,7 @@
 #ifndef __RFB_SDESKTOP_H__
 #define __RFB_SDESKTOP_H__
 
+#include <rfb/ClipboardHandler.h>
 #include <rfb/PixelBuffer.h>
 #include <rfb/VNCServer.h>
 #include <rfb/InputHandler.h>
@@ -47,7 +49,7 @@ namespace rfb {
 
   class VNCServer;
 
-  class SDesktop : public InputHandler {
+  class SDesktop : public InputHandler, public ClipboardHandler {
   public:
     // start() is called by the server when the first client authenticates
     // successfully, and can be used to begin any expensive tasks which are not
@@ -85,6 +87,20 @@ namespace rfb {
     // pointerEvent() and keyEvent() are called in response to
     // the relevant RFB protocol messages from clients.
     // See InputHandler for method signatures.
+
+    // ClipboardHandler interface
+    // remoteClipboardAvailable(), remoteClipboardUnavailable(),
+    // remoteClipboardData() and localClipboardRequest() are called in
+    // response to relevant messages from clients.
+    // See ClipboardHandler for more details.
+    // The matching local methods are optional as there is usually no
+    // object downstream of the desktop object.
+
+    virtual void remoteClipboardRequest() {}
+    virtual void localClipboardAvailable() {}
+    virtual void localClipboardUnavailable() {}
+    virtual void localClipboardData(const char* data) {}
+
   protected:
     virtual ~SDesktop() {}
   };

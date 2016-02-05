@@ -1,5 +1,5 @@
 /* Copyright (C) 2002-2005 RealVNC Ltd.  All Rights Reserved.
- * Copyright 2011 Pierre Ossman for Cendio AB
+ * Copyright 2011-2016 Pierre Ossman for Cendio AB
  * 
  * This is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -52,7 +52,8 @@ SConnection::SConnection()
   : readyForSetColourMapEntries(false),
     is(0), os(0), reader_(0), writer_(0),
     security(0), ssecurity(0), state_(RFBSTATE_UNINITIALISED),
-    preferredEncoding(encodingRaw)
+    preferredEncoding(encodingRaw),
+    hasLocalClipboard(false), clipboard(NULL)
 {
   defaultMajorVersion = 3;
   defaultMinorVersion = 8;
@@ -71,6 +72,7 @@ SConnection::~SConnection()
   reader_ = 0;
   delete writer_;
   writer_ = 0;
+  strFree(clipboard);
 }
 
 void SConnection::setStreams(rdr::InStream* is_, rdr::OutStream* os_)
@@ -320,6 +322,44 @@ void SConnection::approveConnection(bool accept, const char* reason)
     state_ = RFBSTATE_INVALID;
     throw AuthFailureException(reason);
   }
+}
+
+void SConnection::cutText(const char* str, rdr::U32 len)
+{
+  CharArray filtered(convertLF(str, len));
+
+  strFree(clipboard);
+  clipboard = NULL;
+
+  clipboard = latin1ToUTF8(filtered.buf);
+  remoteClipboardAvailable();
+}
+
+void SConnection::remoteClipboardRequest()
+{
+  if (clipboard != NULL) {
+    remoteClipboardData(clipboard);
+    return;
+  }
+}
+
+void SConnection::localClipboardAvailable()
+{
+  hasLocalClipboard = true;
+  localClipboardRequest();
+}
+
+void SConnection::localClipboardUnavailable()
+{
+  hasLocalClipboard = false;
+}
+
+void SConnection::localClipboardData(const char* data)
+{
+  CharArray filtered(convertLF(data));
+  CharArray latin1(filtered.buf);
+
+  writer()->writeCutText(latin1.buf, strlen(latin1.buf));
 }
 
 void SConnection::clientInit(bool shared)

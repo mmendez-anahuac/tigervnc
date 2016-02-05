@@ -1,4 +1,5 @@
 /* Copyright (C) 2002-2005 RealVNC Ltd.  All Rights Reserved.
+ * Copyright 2011-2016 Pierre Ossman for Cendio AB
  * 
  * This is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,7 +42,8 @@ CConnection::CConnection()
   : csecurity(0), is(0), os(0), reader_(0), writer_(0),
     shared(false),
     state_(RFBSTATE_UNINITIALISED), useProtocol3_3(false),
-    framebuffer(NULL), decoder(this)
+    framebuffer(NULL), decoder(this),
+    hasLocalClipboard(false), clipboard(NULL)
 {
   security = new SecurityClient();
 }
@@ -54,6 +56,7 @@ CConnection::~CConnection()
   reader_ = 0;
   delete writer_;
   writer_ = 0;
+  strFree(clipboard);
 }
 
 void CConnection::setStreams(rdr::InStream* is_, rdr::OutStream* os_)
@@ -335,6 +338,44 @@ void CConnection::framebufferUpdateEnd()
 void CConnection::dataRect(const Rect& r, int encoding)
 {
   decoder.decodeRect(r, encoding, framebuffer);
+}
+
+void CConnection::cutText(const char* str, rdr::U32 len)
+{
+  CharArray filtered(convertLF(str, len));
+
+  strFree(clipboard);
+  clipboard = NULL;
+
+  clipboard = latin1ToUTF8(filtered.buf);
+  remoteClipboardAvailable();
+}
+
+void CConnection::remoteClipboardRequest()
+{
+  if (clipboard != NULL) {
+    remoteClipboardData(clipboard);
+    return;
+  }
+}
+
+void CConnection::localClipboardAvailable()
+{
+  hasLocalClipboard = true;
+  localClipboardRequest();
+}
+
+void CConnection::localClipboardUnavailable()
+{
+  hasLocalClipboard = false;
+}
+
+void CConnection::localClipboardData(const char* data)
+{
+  CharArray filtered(convertLF(data));
+  CharArray latin1(filtered.buf);
+
+  writer()->writeCutText(latin1.buf, strlen(latin1.buf));
 }
 
 void CConnection::authSuccess()

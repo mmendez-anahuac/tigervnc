@@ -1,4 +1,5 @@
 /* Copyright (C) 2002-2005 RealVNC Ltd.  All Rights Reserved.
+ * Copyright 2009-2016 Pierre Ossman for Cendio AB
  * 
  * This is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -88,7 +89,6 @@ namespace rfb {
     virtual void setPixelBuffer(PixelBuffer* pb);
     virtual void setScreenLayout(const ScreenSet& layout);
     virtual PixelBuffer* getPixelBuffer() const { return pb; }
-    virtual void serverCutText(const char* str, int len);
     virtual void add_changed(const Region &region);
     virtual void add_copied(const Region &dest, const Point &delta);
     virtual void setCursor(int width, int height, const Point& hotspot,
@@ -97,11 +97,24 @@ namespace rfb {
 
     virtual void bell();
 
-    // - Close all currently-connected clients, by calling
-    //   their close() method with the supplied reason.
     virtual void closeClients(const char* reason) {closeClients(reason, 0);}
 
+    virtual void remoteClipboardAvailable();
+    virtual void remoteClipboardUnavailable();
+    virtual void remoteClipboardData(const char* data);
+    virtual void remoteClipboardRequest();
+    virtual void localClipboardAvailable();
+    virtual void localClipboardUnavailable();
+    virtual void localClipboardData(const char* data);
+    virtual void localClipboardRequest();
+
+
     // VNCServerST-only methods
+
+    void remoteClipboardAvailable(VNCSConnectionST* client);
+    void remoteClipboardUnavailable(VNCSConnectionST* client);
+    void remoteClipboardData(VNCSConnectionST* client, const char* data);
+    void localClipboardRequest(VNCSConnectionST* client);
 
     // closeClients() closes all RFB sessions, except the specified one (if
     // any), and logs the specified reason for closure.
@@ -212,6 +225,8 @@ namespace rfb {
 
     std::list<VNCSConnectionST*> clients;
     VNCSConnectionST* pointerClient;
+    VNCSConnectionST* clipboardClient;
+    std::list<VNCSConnectionST*> clipboardRequestors;
     std::list<network::Socket*> closingSockets;
 
     ComparingUpdateTracker* comparer;

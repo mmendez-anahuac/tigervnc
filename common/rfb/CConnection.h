@@ -1,4 +1,5 @@
 /* Copyright (C) 2002-2005 RealVNC Ltd.  All Rights Reserved.
+ * Copyright 2011-2016 Pierre Ossman for Cendio AB
  * 
  * This is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,6 +25,7 @@
 #define __RFB_CCONNECTION_H__
 
 #include <rfb/CMsgHandler.h>
+#include <rfb/ClipboardHandler.h>
 #include <rfb/DecodeManager.h>
 #include <rfb/util.h>
 
@@ -35,7 +37,7 @@ namespace rfb {
   class IdentityVerifier;
   class SecurityClient;
 
-  class CConnection : public CMsgHandler {
+  class CConnection : public CMsgHandler, public ClipboardHandler {
   public:
 
     CConnection();
@@ -103,8 +105,20 @@ namespace rfb {
     virtual void framebufferUpdateEnd();
     virtual void dataRect(const Rect& r, int encoding);
 
+    virtual void cutText(const char* str, rdr::U32 len);
+
+    virtual void remoteClipboardRequest();
+    virtual void localClipboardAvailable();
+    virtual void localClipboardUnavailable();
+    virtual void localClipboardData(const char* data);
+
 
     // Methods to be overridden in a derived class
+
+    // Derived classes should override the methods
+    // remoteClipboardAvailable(), remoteClipboardUnavailable(),
+    // remoteClipboardData() and localClipboardRequest() from
+    // ClipboardHandler
 
     // getIdVerifier() returns the identity verifier associated with the connection.
     // Ownership of the IdentityVerifier is retained by the CConnection instance.
@@ -184,6 +198,9 @@ namespace rfb {
 
     ModifiablePixelBuffer* framebuffer;
     DecodeManager decoder;
+
+    bool hasLocalClipboard;
+    char* clipboard;
   };
 }
 #endif

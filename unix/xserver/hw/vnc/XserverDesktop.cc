@@ -307,15 +307,6 @@ void XserverDesktop::bell()
   server->bell();
 }
 
-void XserverDesktop::serverCutText(const char* str, int len)
-{
-  try {
-    server->serverCutText(str, len);
-  } catch (rdr::Exception& e) {
-    vlog.error("XserverDesktop::serverCutText: %s",e.str());
-  }
-}
-
 void XserverDesktop::setDesktopName(const char* name)
 {
   try {
@@ -652,11 +643,6 @@ void XserverDesktop::pointerEvent(const Point& pos, int buttonMask)
   vncPointerButtonAction(buttonMask);
 }
 
-void XserverDesktop::clientCutText(const char* str, int len)
-{
-  vncClientCutText(str, len);
-}
-
 unsigned int XserverDesktop::setScreenLayout(int fb_width, int fb_height,
                                              const rfb::ScreenSet& layout)
 {
@@ -818,6 +804,46 @@ unsigned int XserverDesktop::setScreenLayout(int fb_width, int fb_height,
   vncRandRUpdateSetTime(screenIndex);
 
   return rfb::resultSuccess;
+}
+
+void XserverDesktop::remoteClipboardAvailable()
+{
+  vncRemoteClipboardAvailable();
+}
+
+void XserverDesktop::remoteClipboardUnavailable()
+{
+  vncRemoteClipboardUnavailable();
+}
+
+void XserverDesktop::remoteClipboardData(const char* data_)
+{
+  vncRemoteClipboardData(data_);
+}
+
+void XserverDesktop::remoteClipboardRequest()
+{
+  server->remoteClipboardRequest();
+}
+
+void XserverDesktop::localClipboardAvailable()
+{
+  server->localClipboardAvailable();
+}
+
+void XserverDesktop::localClipboardUnavailable()
+{
+  server->localClipboardUnavailable();
+}
+
+void XserverDesktop::localClipboardData(const char* data_)
+{
+  server->localClipboardData(data_);
+}
+
+void XserverDesktop::localClipboardRequest()
+{
+  vncLocalClipboardRequest();
 }
 
 void XserverDesktop::grabRegion(const rfb::Region& region)

@@ -1,5 +1,5 @@
 /* Copyright (C) 2002-2005 RealVNC Ltd.  All Rights Reserved.
- * Copyright 2009-2015 Pierre Ossman for Cendio AB
+ * Copyright 2009-2016 Pierre Ossman for Cendio AB
  * 
  * This is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -264,19 +264,6 @@ void VNCSConnectionST::bellOrClose()
   }
 }
 
-void VNCSConnectionST::serverCutTextOrClose(const char *str, int len)
-{
-  try {
-    if (!(accessRights & AccessCutText)) return;
-    if (!rfb::Server::sendCutText) return;
-    if (state() == RFBSTATE_NORMAL)
-      writer()->writeCutText(str, len);
-  } catch(rdr::Exception& e) {
-    close(e.str());
-  }
-}
-
-
 void VNCSConnectionST::setDesktopNameOrClose(const char *name)
 {
   try {
@@ -285,7 +272,6 @@ void VNCSConnectionST::setDesktopNameOrClose(const char *name)
     close(e.str());
   }
 }
-
 
 void VNCSConnectionST::setCursorOrClose()
 {
@@ -296,6 +282,41 @@ void VNCSConnectionST::setCursorOrClose()
   }
 }
 
+void VNCSConnectionST::localClipboardAvailableOrClose()
+{
+  try {
+    localClipboardAvailable();
+  } catch(rdr::Exception& e) {
+    close(e.str());
+  }
+}
+
+void VNCSConnectionST::localClipboardUnavailableOrClose()
+{
+  try {
+    localClipboardUnavailable();
+  } catch(rdr::Exception& e) {
+    close(e.str());
+  }
+}
+
+void VNCSConnectionST::localClipboardDataOrClose(const char* data)
+{
+  try {
+    localClipboardData(data);
+  } catch(rdr::Exception& e) {
+    close(e.str());
+  }
+}
+
+void VNCSConnectionST::remoteClipboardRequestOrClose()
+{
+  try {
+    remoteClipboardRequest();
+  } catch(rdr::Exception& e) {
+    close(e.str());
+  }
+}
 
 int VNCSConnectionST::checkIdleTimeout()
 {
@@ -555,13 +576,6 @@ void VNCSConnectionST::keyEvent(rdr::U32 key, bool down) {
   server->desktop->keyEvent(key, down);
 }
 
-void VNCSConnectionST::cutText(const char* str, rdr::U32 len)
-{
-  if (!(accessRights & AccessCutText)) return;
-  if (!rfb::Server::acceptCutText) return;
-  server->desktop->clientCutText(str, len);
-}
-
 void VNCSConnectionST::framebufferUpdateRequest(const Rect& r,bool incremental)
 {
   Rect safeRect;
@@ -726,6 +740,25 @@ void VNCSConnectionST::supportsContinuousUpdates()
   writer()->writeEndOfContinuousUpdates();
 }
 
+void VNCSConnectionST::remoteClipboardAvailable()
+{
+  server->remoteClipboardAvailable(this);
+}
+
+void VNCSConnectionST::remoteClipboardUnavailable()
+{
+  server->remoteClipboardUnavailable(this);
+}
+
+void VNCSConnectionST::remoteClipboardData(const char* data)
+{
+  server->remoteClipboardData(this, data);
+}
+
+void VNCSConnectionST::localClipboardRequest()
+{
+  server->localClipboardRequest(this);
+}
 
 bool VNCSConnectionST::handleTimeout(Timer* t)
 {

@@ -1,5 +1,5 @@
 /* Copyright (C) 2002-2005 RealVNC Ltd.  All Rights Reserved.
- * Copyright 2011 Pierre Ossman for Cendio AB
+ * Copyright 2011-2016 Pierre Ossman for Cendio AB
  * 
  * This is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 
 #include <rdr/InStream.h>
 #include <rdr/OutStream.h>
+#include <rfb/ClipboardHandler.h>
 #include <rfb/SMsgHandler.h>
 #include <rfb/SecurityServer.h>
 
@@ -35,7 +36,7 @@ namespace rfb {
   class SMsgWriter;
   class SSecurity;
 
-  class SConnection : public SMsgHandler {
+  class SConnection : public SMsgHandler, public ClipboardHandler {
   public:
 
     SConnection();
@@ -73,8 +74,20 @@ namespace rfb {
 
     virtual void setEncodings(int nEncodings, const rdr::S32* encodings);
 
+    virtual void cutText(const char* str, rdr::U32 len);
+
+    virtual void remoteClipboardRequest();
+    virtual void localClipboardAvailable();
+    virtual void localClipboardUnavailable();
+    virtual void localClipboardData(const char* data);
+
 
     // Methods to be overridden in a derived class
+
+    // Derived classes should override the methods
+    // remoteClipboardAvailable(), remoteClipboardUnavailable(),
+    // remoteClipboardData() and localClipboardRequest() from
+    // ClipboardHandler
 
     // versionReceived() indicates that the version number has just been read
     // from the client.  The version will already have been "cooked"
@@ -200,6 +213,9 @@ namespace rfb {
     SSecurity* ssecurity;
     stateEnum state_;
     rdr::S32 preferredEncoding;
+
+    bool hasLocalClipboard;
+    char* clipboard;
   };
 }
 #endif

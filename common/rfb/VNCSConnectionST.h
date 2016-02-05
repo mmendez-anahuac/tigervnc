@@ -1,5 +1,5 @@
 /* Copyright (C) 2002-2005 RealVNC Ltd.  All Rights Reserved.
- * Copyright 2009-2011 Pierre Ossman for Cendio AB
+ * Copyright 2009-2016 Pierre Ossman for Cendio AB
  * 
  * This is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -73,8 +73,12 @@ namespace rfb {
     void screenLayoutChangeOrClose(rdr::U16 reason);
     void setCursorOrClose();
     void bellOrClose();
-    void serverCutTextOrClose(const char *str, int len);
     void setDesktopNameOrClose(const char *name);
+
+    void localClipboardAvailableOrClose();
+    void localClipboardUnavailableOrClose();
+    void localClipboardDataOrClose(const char* data);
+    void remoteClipboardRequestOrClose();
 
     // checkIdleTimeout() returns the number of milliseconds left until the
     // idle timeout expires.  If it has expired, the connection is closed and
@@ -133,7 +137,6 @@ namespace rfb {
     virtual void setPixelFormat(const PixelFormat& pf);
     virtual void pointerEvent(const Point& pos, int buttonMask);
     virtual void keyEvent(rdr::U32 key, bool down);
-    virtual void cutText(const char* str, rdr::U32 len);
     virtual void framebufferUpdateRequest(const Rect& r, bool incremental);
     virtual void setDesktopSize(int fb_width, int fb_height,
                                 const ScreenSet& layout);
@@ -143,6 +146,13 @@ namespace rfb {
     virtual void supportsLocalCursor();
     virtual void supportsFence();
     virtual void supportsContinuousUpdates();
+
+    // ClipboardHandler callbacks
+
+    virtual void remoteClipboardAvailable();
+    virtual void remoteClipboardUnavailable();
+    virtual void remoteClipboardData(const char* data);
+    virtual void localClipboardRequest();
 
     // setAccessRights() allows a security package to limit the access rights
     // of a VNCSConnectioST to the server.  These access rights are applied

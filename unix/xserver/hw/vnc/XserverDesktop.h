@@ -63,7 +63,6 @@ public:
   void setFramebuffer(int w, int h, void* fbptr, int stride);
   void refreshScreenLayout();
   void bell();
-  void serverCutText(const char* str, int len);
   void setDesktopName(const char* name);
   void setCursor(int width, int height, int hotX, int hotY,
                  const unsigned char *rgbaData);
@@ -91,10 +90,18 @@ public:
   // rfb::SDesktop callbacks
   virtual void pointerEvent(const rfb::Point& pos, int buttonMask);
   virtual void keyEvent(rdr::U32 key, bool down);
-  virtual void clientCutText(const char* str, int len);
   virtual rfb::Point getFbSize() { return rfb::Point(width(), height()); }
   virtual unsigned int setScreenLayout(int fb_width, int fb_height,
                                        const rfb::ScreenSet& layout);
+
+  virtual void remoteClipboardAvailable();
+  virtual void remoteClipboardUnavailable();
+  virtual void remoteClipboardData(const char* data);
+  virtual void remoteClipboardRequest();
+  virtual void localClipboardAvailable();
+  virtual void localClipboardUnavailable();
+  virtual void localClipboardData(const char* data);
+  virtual void localClipboardRequest();
 
   // rfb::PixelBuffer callbacks
   virtual void grabRegion(const rfb::Region& r);

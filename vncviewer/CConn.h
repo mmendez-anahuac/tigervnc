@@ -59,7 +59,6 @@ public:
 
   virtual void bell();
 
-  virtual void cutText(const char* str, rdr::U32 len);
 
   virtual void framebufferUpdateStart();
   virtual void framebufferUpdateEnd();
@@ -71,6 +70,10 @@ public:
 
   virtual void fence(rdr::U32 flags, unsigned len, const char data[]);
 
+  virtual void remoteClipboardAvailable();
+  virtual void remoteClipboardUnavailable();
+  virtual void remoteClipboardData(const char* data);
+  virtual void localClipboardRequest();
 
 private:
 

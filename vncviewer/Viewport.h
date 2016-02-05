@@ -52,6 +52,12 @@ public:
   void setCursor(int width, int height, const rfb::Point& hotspot,
                  void* data, void* mask);
 
+  // Clipboard events
+  void remoteClipboardAvailable();
+  void remoteClipboardUnavailable();
+  void remoteClipboardData(const char* data);
+  void localClipboardRequest();
+
   // Fl_Widget callback methods
 
   void draw();
@@ -101,6 +107,8 @@ private:
 
   Fl_RGB_Image *cursor;
   rfb::Point cursorHotspot;
+
+  int clipboardSource;
 };
 
 #endif

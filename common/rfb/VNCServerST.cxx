@@ -1,5 +1,5 @@
 /* Copyright (C) 2002-2005 RealVNC Ltd.  All Rights Reserved.
- * Copyright 2009-2014 Pierre Ossman for Cendio AB
+ * Copyright 2009-2016 Pierre Ossman for Cendio AB
  * 
  * This is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -81,8 +81,8 @@ rfb::BoolParameter alwaysSetDeferUpdateTimer("AlwaysSetDeferUpdateTimer",
 VNCServerST::VNCServerST(const char* name_, SDesktop* desktop_)
   : blHosts(&blacklist), desktop(desktop_), desktopStarted(false),
     blockCounter(0), pb(0),
-    name(strDup(name_)), pointerClient(0), comparer(0),
-    renderedCursorInvalid(false),
+    name(strDup(name_)), pointerClient(0), clipboardClient(0),
+    comparer(0), renderedCursorInvalid(false),
     queryConnectionHandler(0), keyRemapper(&KeyRemapper::defInstance),
     lastConnectionTime(0), disableclients(false),
     deferTimer(this), deferPending(false)
@@ -146,6 +146,13 @@ void VNCServerST::removeSocket(network::Socket* sock) {
   std::list<VNCSConnectionST*>::iterator ci;
   for (ci = clients.begin(); ci != clients.end(); ci++) {
     if ((*ci)->getSock() == sock) {
+      // - Remove any references to it
+      if (pointerClient == *ci)
+        pointerClient = NULL;
+      if (clipboardClient == *ci)
+        clipboardClient = NULL;
+      clipboardRequestors.remove(*ci);
+
       // - Delete the per-Socket resources
       delete *ci;
 
@@ -368,15 +375,6 @@ void VNCServerST::bell()
   }
 }
 
-void VNCServerST::serverCutText(const char* str, int len)
-{
-  std::list<VNCSConnectionST*>::iterator ci, ci_next;
-  for (ci = clients.begin(); ci != clients.end(); ci = ci_next) {
-    ci_next = ci; ci_next++;
-    (*ci)->serverCutTextOrClose(str, len);
-  }
-}
-
 void VNCServerST::setName(const char* name_)
 {
   name.replaceBuf(strDup(name_));
@@ -438,7 +436,122 @@ void VNCServerST::setCursorPos(const Point& pos)
   }
 }
 
+void VNCServerST::remoteClipboardAvailable()
+{
+  throw Exception("Invalid call to VNCServerST::remoteClipboardAvailable()");
+}
+
+void VNCServerST::remoteClipboardUnavailable()
+{
+  throw Exception("Invalid call to VNCServerST::remoteClipboardUnavailable()");
+}
+
+void VNCServerST::remoteClipboardData(const char* data)
+{
+  throw Exception("Invalid call to VNCServerST::remoteClipboardData()");
+}
+
+void VNCServerST::remoteClipboardRequest()
+{
+  if (!Server::acceptCutText)
+    return;
+  if (clipboardClient == NULL)
+    return;
+
+  clipboardClient->remoteClipboardRequestOrClose();
+}
+
+void VNCServerST::localClipboardAvailable()
+{
+  std::list<VNCSConnectionST*>::iterator ci, ci_next;
+
+  clipboardClient = NULL;
+  clipboardRequestors.clear();
+
+  if (!Server::sendCutText)
+    return;
+
+  for (ci = clients.begin(); ci != clients.end(); ci = ci_next) {
+    ci_next = ci; ci_next++;
+    (*ci)->localClipboardAvailableOrClose();
+  }
+}
+
+void VNCServerST::localClipboardUnavailable()
+{
+  std::list<VNCSConnectionST*>::iterator ci, ci_next;
+
+  clipboardRequestors.clear();
+
+  if (!Server::sendCutText)
+    return;
+
+  for (ci = clients.begin(); ci != clients.end(); ci = ci_next) {
+    ci_next = ci; ci_next++;
+    (*ci)->localClipboardUnavailableOrClose();
+  }
+}
+
+void VNCServerST::localClipboardData(const char* data)
+{
+  std::list<VNCSConnectionST*>::iterator ci, ci_next;
+
+  if (!Server::sendCutText)
+    return;
+
+  for (ci = clipboardRequestors.begin();
+       ci != clipboardRequestors.end(); ci = ci_next) {
+    ci_next = ci; ci_next++;
+    (*ci)->localClipboardDataOrClose(data);
+  }
+
+  clipboardRequestors.clear();
+}
+
+void VNCServerST::localClipboardRequest()
+{
+  throw Exception("Invalid call to VNCServerST::localClipboardRequest()");
+}
+
+
 // Other public methods
+
+void VNCServerST::remoteClipboardAvailable(VNCSConnectionST* client)
+{
+  if (!Server::acceptCutText)
+    return;
+  clipboardClient = client;
+  desktop->remoteClipboardAvailable();
+}
+
+void VNCServerST::remoteClipboardUnavailable(VNCSConnectionST* client)
+{
+  if (!Server::acceptCutText)
+    return;
+  if (client != clipboardClient)
+    return;
+  desktop->remoteClipboardUnavailable();
+  clipboardClient = NULL;
+}
+
+void VNCServerST::remoteClipboardData(VNCSConnectionST* client,
+                                      const char* data)
+{
+  if (!Server::acceptCutText)
+    return;
+  if (client != clipboardClient)
+    return;
+  desktop->remoteClipboardData(data);
+}
+
+void VNCServerST::localClipboardRequest(VNCSConnectionST* client)
+{
+  if (!Server::sendCutText)
+    return;
+  clipboardRequestors.push_back(client);
+  if (clipboardRequestors.size() >= 1)
+    desktop->localClipboardRequest();
+}
 
 void VNCServerST::approveConnection(network::Socket* sock, bool accept,
                                     const char* reason)

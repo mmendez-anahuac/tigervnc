@@ -28,7 +28,7 @@
 
 namespace rfb {
 
-  class VNCServer : public UpdateTracker {
+  class VNCServer : public UpdateTracker, public ClipboardHandler {
   public:
     // blockUpdates()/unblockUpdates() tells the server that the pixel buffer
     // is currently in flux and may not be accessed. The attributes of the
@@ -51,10 +51,6 @@ namespace rfb {
 
     // getPixelBuffer() returns a pointer to the PixelBuffer object.
     virtual PixelBuffer* getPixelBuffer() const = 0;
-
-    // serverCutText() tells the server that the cut text has changed.  This
-    // will normally be sent to all clients.
-    virtual void serverCutText(const char* str, int len) = 0;
 
     // bell() tells the server that it should make all clients make a bell sound.
     virtual void bell() = 0;
