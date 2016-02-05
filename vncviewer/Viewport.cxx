@@ -294,7 +294,7 @@ int Viewport::handle(int event)
     vlog.debug("Sending clipboard data (%d bytes)", (int)strlen(buffer));
 
     try {
-      cc->writer()->clientCutText(buffer, strlen(buffer));
+      cc->writer()->writeClientCutText(buffer, strlen(buffer));
     } catch (rdr::Exception& e) {
       vlog.error("%s", e.str());
       exit_vncviewer(e.str());
@@ -411,7 +411,7 @@ void Viewport::handlePointerEvent(const rfb::Point& pos, int buttonMask)
   if (!viewOnly) {
     if (pointerEventInterval == 0 || buttonMask != lastButtonMask) {
       try {
-        cc->writer()->pointerEvent(pos, buttonMask);
+        cc->writer()->writePointerEvent(pos, buttonMask);
       } catch (rdr::Exception& e) {
         vlog.error("%s", e.str());
         exit_vncviewer(e.str());
@@ -434,7 +434,8 @@ void Viewport::handlePointerTimeout(void *data)
   assert(self);
 
   try {
-    self->cc->writer()->pointerEvent(self->lastPointerPos, self->lastButtonMask);
+    self->cc->writer()->writePointerEvent(self->lastPointerPos,
+                                          self->lastButtonMask);
   } catch (rdr::Exception& e) {
     vlog.error("%s", e.str());
     exit_vncviewer(e.str());
@@ -503,8 +504,8 @@ void Viewport::handleKeyPress(int keyCode, rdr::U32 keySym)
   if (ctrlPressed && altPressed) {
     vlog.debug("Faking release of AltGr (Ctrl_L+Alt_R)");
     try {
-      cc->writer()->keyEvent(XK_Control_L, false);
-      cc->writer()->keyEvent(XK_Alt_R, false);
+      cc->writer()->writeKeyEvent(XK_Control_L, false);
+      cc->writer()->writeKeyEvent(XK_Alt_R, false);
     } catch (rdr::Exception& e) {
       vlog.error("%s", e.str());
       exit_vncviewer(e.str());
@@ -526,7 +527,7 @@ void Viewport::handleKeyPress(int keyCode, rdr::U32 keySym)
 #endif
 
   try {
-    cc->writer()->keyEvent(keySym, true);
+    cc->writer()->writeKeyEvent(keySym, true);
   } catch (rdr::Exception& e) {
     vlog.error("%s", e.str());
     exit_vncviewer(e.str());
@@ -537,8 +538,8 @@ void Viewport::handleKeyPress(int keyCode, rdr::U32 keySym)
   if (ctrlPressed && altPressed) {
     vlog.debug("Restoring AltGr state");
     try {
-      cc->writer()->keyEvent(XK_Control_L, true);
-      cc->writer()->keyEvent(XK_Alt_R, true);
+      cc->writer()->writeKeyEvent(XK_Control_L, true);
+      cc->writer()->writeKeyEvent(XK_Alt_R, true);
     } catch (rdr::Exception& e) {
       vlog.error("%s", e.str());
       exit_vncviewer(e.str());
@@ -571,7 +572,7 @@ void Viewport::handleKeyRelease(int keyCode)
 #endif
 
   try {
-    cc->writer()->keyEvent(iter->second, false);
+    cc->writer()->writeKeyEvent(iter->second, false);
   } catch (rdr::Exception& e) {
     vlog.error("%s", e.str());
     exit_vncviewer(e.str());

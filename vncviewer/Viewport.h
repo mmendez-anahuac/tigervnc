@@ -22,6 +22,8 @@
 
 #include <map>
 
+#include <rfb/Rect.h>
+
 namespace rfb { class ModifiablePixelBuffer; }
 
 #include <FL/Fl_Widget.H>

@@ -210,7 +210,7 @@ void CMsgWriter::writeFence(rdr::U32 flags, unsigned len, const char data[])
   endMsg();
 }
 
-void CMsgWriter::keyEvent(rdr::U32 key, bool down)
+void CMsgWriter::writeKeyEvent(rdr::U32 key, bool down)
 {
   startMsg(msgTypeKeyEvent);
   os->writeU8(down);
@@ -220,7 +220,7 @@ void CMsgWriter::keyEvent(rdr::U32 key, bool down)
 }
 
 
-void CMsgWriter::pointerEvent(const Point& pos, int buttonMask)
+void CMsgWriter::writePointerEvent(const Point& pos, int buttonMask)
 {
   Point p(pos);
   if (p.x < 0) p.x = 0;
@@ -236,7 +236,7 @@ void CMsgWriter::pointerEvent(const Point& pos, int buttonMask)
 }
 
 
-void CMsgWriter::clientCutText(const char* str, rdr::U32 len)
+void CMsgWriter::writeClientCutText(const char* str, rdr::U32 len)
 {
   startMsg(msgTypeClientCutText);
   os->pad(3);
